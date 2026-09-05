@@ -78,7 +78,7 @@ export const AuthLandingPage: React.FC<AuthLandingPageProps> = ({ onOpenSecurity
                 </span>
               </div>
               <p className="text-xs text-slate-400 hidden md:block">
-                Zero Browser Secret Exposure • Firestore Document DB • Gemini 2.5 Flash
+                Zero Browser Secret Exposure • Firestore Document DB • Gemini 3.5 Flash-Lite
               </p>
             </div>
           </div>
@@ -134,7 +134,7 @@ export const AuthLandingPage: React.FC<AuthLandingPageProps> = ({ onOpenSecurity
           </h2>
 
           <p className="text-sm sm:text-base text-slate-400 leading-relaxed max-w-2xl mx-auto">
-            A reflective personal sanctuary powered by server-side Gemini 2.5 Flash. Write freely with real-time DLP privacy guards, converse with a thoughtful brainstorming partner, and preserve your evolving goals in a zero-trust long-term knowledge hub.
+            A reflective personal sanctuary powered by server-side Gemini 3.5 Flash-Lite. Write freely with real-time DLP privacy guards, converse with a thoughtful brainstorming partner, and preserve your evolving goals in a zero-trust long-term knowledge hub.
           </p>
 
           {/* Authentication Action Box */}
@@ -357,7 +357,7 @@ export const AuthLandingPage: React.FC<AuthLandingPageProps> = ({ onOpenSecurity
             <ul className="space-y-1.5 text-xs text-slate-300 pt-2 border-t border-slate-800/60">
               <li className="flex items-center gap-2">
                 <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" />
-                <span>Server-Side Gemini 2.5 Flash Proxy</span>
+                <span>Server-Side Gemini 3.5 Flash-Lite Proxy</span>
               </li>
               <li className="flex items-center gap-2">
                 <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" />

@@ -63,38 +63,72 @@ function JournalMain() {
       try {
         // 1. Load Journal Entries
         const loadedJournals = await StorageService.getUserJournals(user.uid);
-        setJournals(loadedJournals);
-        if (loadedJournals.length > 0) {
-          setActiveJournal(loadedJournals[0]);
+        
+        // Clean starter content without leaking internal database paths or architectural specs
+        const cleanStarterContent = `# Welcome to Your Reflection Space
+
+Take a quiet moment to pause, reflect, and capture your thoughts.
+
+### Prompts to get started:
+- **What's top of mind today?** Write freely about what captured your focus or energy.
+- **Goals & intentions:** What is one meaningful project or milestone you are working toward?
+- **Key takeaways or learnings:** What went well this week that you would like to remember?
+
+---
+
+*Tip: Click **Synthesize Insights** above whenever you want Gemini to extract themes and action items, or click **Brainstorm** to explore new angles together!*`;
+
+        // Automatically sanitize any legacy welcome entry that contained technical invariants
+        const sanitizedJournals = loadedJournals.map(j => {
+          if (j.id === 'jnl-welcome' && (j.content.includes('Key Invariants:') || j.content.includes('/users/'))) {
+            const updated: JournalEntry = {
+              ...j,
+              title: 'Welcome to Your Personal Journal',
+              content: cleanStarterContent,
+              summary: 'A clean starter reflection space for mindful writing, personal goals, and creative brainstorming.',
+              sentiment: 'focused',
+              sentimentScore: 92,
+              keyTakeaways: [
+                'Capture daily thoughts, priorities, and creative ideas freely',
+                'Engage the Brainstorming Partner to explore new perspectives and solutions',
+                'Synthesize reflections into actionable insights and lasting takeaways'
+              ],
+              actionItems: [
+                { id: 'act-1', text: 'Write down your top priority for this week', completed: false, category: 'task' },
+                { id: 'act-2', text: 'Explore a new idea with the Brainstorming Partner', completed: false, category: 'creative' }
+              ],
+              tags: ['welcome', 'reflection', 'goals'],
+              updatedAt: new Date().toISOString()
+            };
+            StorageService.saveJournal(user.uid, updated);
+            return updated;
+          }
+          return j;
+        });
+
+        setJournals(sanitizedJournals);
+        if (sanitizedJournals.length > 0) {
+          setActiveJournal(sanitizedJournals[0]);
         } else {
           // Initialize a welcoming first entry
           const firstEntry: JournalEntry = {
             id: 'jnl-welcome',
             userId: user.uid,
-            title: 'Welcome to your Secure Gemini Journal',
-            content: `This personal journal is built on a zero-trust architecture.
-
-Key Invariants:
-1. **Isolated Cloud Storage**: All entries are scoped strictly to /users/${user.uid}/journals/*, eliminating cross-user leakage.
-2. **Zero Browser Exposure**: The Gemini API key is managed securely on the server via Google Cloud Secret Manager.
-3. **Cognitive Privacy Shield**: An integrated DLP scanner alerts you before sensitive tokens or credentials leave your editor.
-4. **Agent Memory Palace**: Your personal Knowledge Hub stores key goals, projects, and reflections across sessions under /users/${user.uid}/knowledge_hub/*.
-5. **AI Introspection & Brainstorming**: Switch to the Brainstorming Partner tab to converse freely with Gemini 2.5 Flash.
-
-Try writing your current goals, questions, or ideas here, then click "Synthesize Insights" above!`,
-            summary: 'An introduction to the zero-trust Personal Gemini Journal, highlighting database isolation, server-side secret management, and agent Memory Palace capabilities.',
+            title: 'Welcome to Your Personal Journal',
+            content: cleanStarterContent,
+            summary: 'A clean starter reflection space for mindful writing, personal goals, and creative brainstorming.',
             sentiment: 'focused',
             sentimentScore: 92,
             keyTakeaways: [
-              'Zero-trust tenant isolation strictly protects private journals and memory palace nodes',
-              'Gemini 2.5 Flash runs entirely server-proxied without browser key leakage',
-              'Long-term context is remembered across conversations via the Knowledge Hub'
+              'Capture daily thoughts, priorities, and creative ideas freely',
+              'Engage the Brainstorming Partner to explore new perspectives and solutions',
+              'Synthesize reflections into actionable insights and lasting takeaways'
             ],
             actionItems: [
-              { id: 'act-1', text: 'Open the Memory Palace to explore your agent long-term memory', completed: false, category: 'task' },
-              { id: 'act-2', text: 'Brainstorm a new project or reflection with Gemini', completed: false, category: 'creative' }
+              { id: 'act-1', text: 'Write down your top priority for this week', completed: false, category: 'task' },
+              { id: 'act-2', text: 'Explore a new idea with the Brainstorming Partner', completed: false, category: 'creative' }
             ],
-            tags: ['security', 'getting-started', 'gemini', 'memory-palace'],
+            tags: ['welcome', 'reflection', 'goals'],
             messages: [
               {
                 id: 'msg-init',
@@ -265,7 +299,7 @@ Try writing your current goals, questions, or ideas here, then click "Synthesize
         setKnowledgeNodes(prev => [...newNodes, ...prev]);
         showToast(`Synthesized insights & stored ${newNodes.length} new Memory Palace nodes!`);
       } else {
-        showToast('Synthesized with Gemini 2.5 Flash');
+        showToast('Synthesized with Gemini 3.5 Flash-Lite');
       }
     } catch (err: any) {
       showToast(err.message || 'Summarization failed', 'error');
@@ -382,9 +416,9 @@ Try writing your current goals, questions, or ideas here, then click "Synthesize
                   </button>
                 </div>
 
-                <div className="text-[11px] text-slate-400 font-mono flex items-center gap-1.5">
+                <div className="text-[11px] text-slate-400 font-medium flex items-center gap-1.5">
                   <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
-                  <span>Tenant: <strong className="text-slate-200">{user.uid.slice(0, 10)}...</strong></span>
+                  <span className="text-slate-300">Private & Encrypted Session</span>
                 </div>
               </div>
 

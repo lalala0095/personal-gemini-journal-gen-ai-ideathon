@@ -106,7 +106,7 @@ export const SecurityModal: React.FC<SecurityModalProps> = ({ isOpen, onClose })
               </div>
             </div>
             <p className="text-xs text-slate-400 leading-relaxed">
-              The client-side React bundle and network panel contain 0 API keys. Calls to Gemini 2.5 Flash are strictly proxied through authenticated server routes (<code className="text-slate-200">/api/gemini/*</code>).
+              The client-side React bundle and network panel contain 0 API keys. Calls to Gemini 3.5 Flash-Lite are strictly proxied through authenticated server routes (<code className="text-slate-200">/api/gemini/*</code>).
             </p>
           </div>
 

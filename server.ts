@@ -206,7 +206,7 @@ CORE MEMORY OPERATING RULE:
 - Do not dump the entire knowledge list; weave the context naturally, acting like an empathetic partner who truly remembers them across sessions.`;
     }
 
-    const systemInstruction = `You are a thoughtful, empathetic, and intellectually curious Personal Journaling & Brainstorming Partner powered by Gemini 2.5 Flash.
+    const systemInstruction = `You are a thoughtful, empathetic, and intellectually curious Personal Journaling & Brainstorming Partner powered by Gemini 3.5 Flash-Lite.
 Your core principles:
 1. Support introspective thinking: Help the user uncover deeper feelings, assumptions, or possibilities.
 2. Ask one or two poignant, open-ended questions per turn rather than overwhelming them.
@@ -216,7 +216,7 @@ User UID (isolated): ${req.userId}
 Context: ${userContext || 'Personal journal and reflective ideation session'}${memoryContext}`;
 
     const response = await ai.models.generateContent({
-      model: 'gemini-2.5-flash',
+      model: 'gemini-3.5-flash-lite',
       contents,
       config: {
         systemInstruction,
@@ -349,7 +349,7 @@ Extract:
 3. 1 to 3 persistent knowledge nodes for the user's Long-Term Knowledge Hub (categorized as Career, Goals, Learning, Projects, Personal, Mindset, or Concerns) so future agent sessions remember this.`;
 
     const response = await ai.models.generateContent({
-      model: 'gemini-2.5-flash',
+      model: 'gemini-3.5-flash-lite',
       contents: [{ role: 'user', parts: [{ text: prompt }] }],
       config: {
         responseMimeType: 'application/json',
@@ -429,7 +429,7 @@ Instructions:
     };
 
     const response = await ai.models.generateContent({
-      model: 'gemini-2.5-flash',
+      model: 'gemini-3.5-flash-lite',
       contents: [{ role: 'user', parts: [{ text: prompt }] }],
       config: {
         responseMimeType: 'application/json',
@@ -469,7 +469,7 @@ app.post('/api/gemini/prompts', requireAuth, async (req: AuthenticatedRequest, r
 Return a JSON array of strings.`;
 
     const response = await ai.models.generateContent({
-      model: 'gemini-2.5-flash',
+      model: 'gemini-3.5-flash-lite',
       contents: [{ role: 'user', parts: [{ text: prompt }] }],
       config: {
         responseMimeType: 'application/json',
