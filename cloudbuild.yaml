@@ -18,24 +18,77 @@ steps:
 
   # 3. Deploy to Cloud Run with Secret Manager binding
   - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
-    entrypoint: gcloud
+    entrypoint: 'bash'
     args:
-      - 'run'
-      - 'deploy'
-      - 'personal-gemini-journal'
-      - '--image'
-      - '$_REGION-docker.pkg.dev/$PROJECT_ID/journal-repo/personal-gemini-journal:$COMMIT_SHA'
-      - '--region'
-      - '$_REGION'
-      - '--platform'
-      - 'managed'
-      - '--allow-unauthenticated'
-      - '--set-secrets'
-      - 'GEMINI_API_KEY=GEMINI_API_KEY:latest'
-      - '--memory'
-      - '512Mi'
-      - '--cpu'
-      - '1'
+      - '-c'
+      - |
+        SECRETS_PARAM="GEMINI_API_KEY=GEMINI_API_KEY:latest"
+        if gcloud secrets describe CRON_SECRET --project="$PROJECT_ID" >/dev/null 2>&1; then
+          echo "CRON_SECRET found in Secret Manager, binding to Cloud Run"
+          SECRETS_PARAM="GEMINI_API_KEY=GEMINI_API_KEY:latest,CRON_SECRET=CRON_SECRET:latest"
+        else
+          echo "CRON_SECRET not found in Secret Manager, binding GEMINI_API_KEY only"
+        fi
+
+        gcloud run deploy personal-gemini-journal \
+          --image "$_REGION-docker.pkg.dev/$PROJECT_ID/journal-repo/personal-gemini-journal:$COMMIT_SHA" \
+          --region "$_REGION" \
+          --platform managed \
+          --allow-unauthenticated \
+          --set-secrets="$$SECRETS_PARAM" \
+          --memory 512Mi \
+          --cpu 1
+
+  # 4. Provision / Synchronize Hourly Cloud Scheduler Job
+  - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
+    entrypoint: 'bash'
+    args:
+      - '-c'
+      - |
+        SERVICE_URL=$(gcloud run services describe personal-gemini-journal --region "$_REGION" --project="$PROJECT_ID" --format='value(status.url)')
+        echo "Cloud Run Service URL: $$SERVICE_URL"
+        if [ -z "$$SERVICE_URL" ]; then
+          echo "Warning: Cloud Run service URL could not be determined. Skipping scheduler setup."
+          exit 0
+        fi
+
+        JOB_NAME="hourly-journal-distiller"
+        TARGET_URI="$$SERVICE_URL/api/cron/hourly-distill"
+
+        HEADERS_ARG="Content-Type=application/json"
+        if gcloud secrets describe CRON_SECRET --project="$PROJECT_ID" >/dev/null 2>&1; then
+          SECRET_VAL=$(gcloud secrets versions access latest --secret=CRON_SECRET --project="$PROJECT_ID" 2>/dev/null || true)
+          if [ -n "$$SECRET_VAL" ]; then
+            HEADERS_ARG="Content-Type=application/json,Authorization=Bearer $$SECRET_VAL"
+          fi
+        fi
+
+        gcloud services enable cloudscheduler.googleapis.com --project="$PROJECT_ID" --quiet
+
+        if gcloud scheduler jobs describe "$$JOB_NAME" --location="$_REGION" --project="$PROJECT_ID" >/dev/null 2>&1; then
+          echo "Updating existing Cloud Scheduler job: $$JOB_NAME"
+          gcloud scheduler jobs update http "$$JOB_NAME" \
+            --location="$_REGION" \
+            --schedule="0 * * * *" \
+            --uri="$$TARGET_URI" \
+            --http-method=POST \
+            --headers="$$HEADERS_ARG" \
+            --message-body='{}' \
+            --time-zone="UTC" \
+            --project="$PROJECT_ID"
+        else
+          echo "Creating new Cloud Scheduler job: $$JOB_NAME"
+          gcloud scheduler jobs create http "$$JOB_NAME" \
+            --location="$_REGION" \
+            --schedule="0 * * * *" \
+            --uri="$$TARGET_URI" \
+            --http-method=POST \
+            --headers="$$HEADERS_ARG" \
+            --message-body='{}' \
+            --time-zone="UTC" \
+            --project="$PROJECT_ID"
+        fi
+        echo "Hourly Cloud Scheduler job synchronized successfully."
 
 substitutions:
   _REGION: 'us-central1'
