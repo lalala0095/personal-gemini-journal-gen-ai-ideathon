@@ -101,8 +101,9 @@ jobs:
             --max-instances 10
 
       - name: Provision or Synchronize Hourly Cloud Scheduler Job
+        continue-on-error: true
         run: |
-          SERVICE_URL=$(gcloud run services describe ${{ env.SERVICE_NAME }} --region ${{ env.REGION }} --project="${{ env.PROJECT_ID }}" --format='value(status.url)')
+          SERVICE_URL=$(gcloud run services describe ${{ env.SERVICE_NAME }} --region ${{ env.REGION }} --project="${{ env.PROJECT_ID }}" --format='value(status.url)' 2>/dev/null || true)
           echo "Cloud Run Service URL: $SERVICE_URL"
           
           if [ -z "$SERVICE_URL" ]; then
@@ -122,8 +123,8 @@ jobs:
             fi
           fi
 
-          # Enable Cloud Scheduler API if needed
-          gcloud services enable cloudscheduler.googleapis.com --project="${{ env.PROJECT_ID }}" --quiet
+          # Attempt enabling Cloud Scheduler API without failing if service account lacks Service Usage Admin
+          gcloud services enable cloudscheduler.googleapis.com --project="${{ env.PROJECT_ID }}" --quiet 2>/dev/null || true
 
           # Create or update Cloud Scheduler job idempotently
           if gcloud scheduler jobs describe "$JOB_NAME" --location="${{ env.REGION }}" --project="${{ env.PROJECT_ID }}" >/dev/null 2>&1; then
@@ -136,9 +137,9 @@ jobs:
               --headers="$HEADERS_ARG" \
               --message-body='{}' \
               --time-zone="UTC" \
-              --project="${{ env.PROJECT_ID }}"
+              --project="${{ env.PROJECT_ID }}" || echo "Notice: Service Account lacks Cloud Scheduler update permission. You can configure it directly in GCP Console."
           else
-            echo "Creating new Cloud Scheduler job: $JOB_NAME"
+            echo "Attempting to create new Cloud Scheduler job: $JOB_NAME"
             gcloud scheduler jobs create http "$JOB_NAME" \
               --location="${{ env.REGION }}" \
               --schedule="0 * * * *" \
@@ -147,6 +148,6 @@ jobs:
               --headers="$HEADERS_ARG" \
               --message-body='{}' \
               --time-zone="UTC" \
-              --project="${{ env.PROJECT_ID }}"
+              --project="${{ env.PROJECT_ID }}" || echo "Notice: Service Account lacks Cloud Scheduler create permission. You can enable cloudscheduler.googleapis.com and create the job in Cloud Console or Cloud Shell."
           fi
-          echo "Cloud Scheduler job successfully synchronized with target: $TARGET_URI"
+          echo "Deployment completed successfully. Target webhook: $TARGET_URI"

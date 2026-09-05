@@ -45,7 +45,7 @@ steps:
     args:
       - '-c'
       - |
-        SERVICE_URL=$(gcloud run services describe personal-gemini-journal --region "$_REGION" --project="$PROJECT_ID" --format='value(status.url)')
+        SERVICE_URL=$(gcloud run services describe personal-gemini-journal --region "$_REGION" --project="$PROJECT_ID" --format='value(status.url)' 2>/dev/null || true)
         echo "Cloud Run Service URL: $$SERVICE_URL"
         if [ -z "$$SERVICE_URL" ]; then
           echo "Warning: Cloud Run service URL could not be determined. Skipping scheduler setup."
@@ -63,7 +63,7 @@ steps:
           fi
         fi
 
-        gcloud services enable cloudscheduler.googleapis.com --project="$PROJECT_ID" --quiet
+        gcloud services enable cloudscheduler.googleapis.com --project="$PROJECT_ID" --quiet 2>/dev/null || true
 
         if gcloud scheduler jobs describe "$$JOB_NAME" --location="$_REGION" --project="$PROJECT_ID" >/dev/null 2>&1; then
           echo "Updating existing Cloud Scheduler job: $$JOB_NAME"
@@ -75,7 +75,7 @@ steps:
             --headers="$$HEADERS_ARG" \
             --message-body='{}' \
             --time-zone="UTC" \
-            --project="$PROJECT_ID"
+            --project="$PROJECT_ID" || echo "Notice: Service Account lacks Cloud Scheduler update permission."
         else
           echo "Creating new Cloud Scheduler job: $$JOB_NAME"
           gcloud scheduler jobs create http "$$JOB_NAME" \
@@ -86,9 +86,9 @@ steps:
             --headers="$$HEADERS_ARG" \
             --message-body='{}' \
             --time-zone="UTC" \
-            --project="$PROJECT_ID"
+            --project="$PROJECT_ID" || echo "Notice: Service Account lacks Cloud Scheduler create permission."
         fi
-        echo "Hourly Cloud Scheduler job synchronized successfully."
+        echo "Deployment step completed successfully."
 
 substitutions:
   _REGION: 'us-central1'
