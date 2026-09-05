@@ -4,48 +4,63 @@ This guide walks through configuring Google Cloud Secret Manager and GitHub Acti
 
 ---
 
-## 1. Store the Gemini API Key in Google Cloud Secret Manager
+## 1. Quick Fix: Create the Missing Secret in Secret Manager
 
-Run these commands in your Google Cloud Shell or local `gcloud` CLI:
+The deployment failed because Cloud Run expects a secret named **`GEMINI_API_KEY`** in your project (`943155960296`). Run these three commands in your **Google Cloud Shell** or terminal:
 
 ```bash
-# 1. Enable required Google Cloud services
-gcloud services enable \
-  run.googleapis.com \
-  artifactregistry.googleapis.com \
-  secretmanager.googleapis.com \
-  firestore.googleapis.com
+# 1. Enable Secret Manager (if not already enabled)
+gcloud services enable secretmanager.googleapis.com --project=943155960296
 
-# 2. Create the Secret in Secret Manager
+# 2. Create the GEMINI_API_KEY secret
 gcloud secrets create GEMINI_API_KEY \
-  --replication-policy="automatic"
+  --replication-policy="automatic" \
+  --project=943155960296
 
-# 3. Add your Gemini API key value
-echo -n "YOUR_ACTUAL_GEMINI_API_KEY" | \
-  gcloud secrets versions add GEMINI_API_KEY --data-file=-
+# 3. Add your actual Gemini API Key version
+echo -n "YOUR_ACTUAL_GEMINI_API_KEY" | gcloud secrets versions add GEMINI_API_KEY \
+  --data-file=- \
+  --project=943155960296
 
-# 4. Create Artifact Registry repository for container images
-gcloud artifacts repositories create journal-repo \
-  --repository-format=docker \
-  --location=us-central1 \
-  --description="Personal Gemini Journal Docker repository"
+# 4. Grant Cloud Run's Service Account access to read the secret
+gcloud secrets add-iam-policy-binding GEMINI_API_KEY \
+  --member="serviceAccount:943155960296-compute@developer.gserviceaccount.com" \
+  --role="roles/secretmanager.secretAccessor" \
+  --project=943155960296
+```
+
+Once executed, re-run your Cloud Run deployment and it will succeed!
+
+---
+
+## 2. Alternative Quick Test: Deploy with Environment Variable (Bypassing Secret Manager)
+
+If you prefer to deploy immediately without setting up Secret Manager first, deploy using `--set-env-vars` instead of `--set-secrets`:
+
+```bash
+gcloud run deploy personal-gemini-journal \
+  --image <YOUR_IMAGE_TAG> \
+  --region us-central1 \
+  --platform managed \
+  --allow-unauthenticated \
+  --port 3000 \
+  --set-env-vars GEMINI_API_KEY="YOUR_ACTUAL_GEMINI_API_KEY"
 ```
 
 ---
 
-## 2. Grant Cloud Run Access to the Secret
+## 3. Fixing the "Setting IAM Policy" Warning (Public Access)
 
-Allow the Cloud Run default compute service account to read the secret:
+If your project is part of a Google Workspace or Organization with an unauthenticated invocation restriction, run:
 
 ```bash
-# Get your Google Cloud Project Number
-PROJECT_NUM=$(gcloud projects describe $(gcloud config get-value project) --format="value(projectNumber)")
-
-# Grant Secret Accessor role
-gcloud secrets add-iam-policy-binding GEMINI_API_KEY \
-  --member="serviceAccount:${PROJECT_NUM}-compute@developer.gserviceaccount.com" \
-  --role="roles/secretmanager.secretAccessor"
+gcloud beta run services add-iam-policy-binding personal-gemini-journal \
+  --region=us-central1 \
+  --member="allUsers" \
+  --role="roles/run.invoker" \
+  --project=943155960296
 ```
+
 
 ---
 
