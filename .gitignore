@@ -9,6 +9,8 @@ coverage/
 key.json
 *.key
 .firebase/
+firebase-applet-config.json
+!firebase-applet-config.example.json
 __pycache__/
 *.pyc
 .venv/

@@ -29,7 +29,7 @@ export const AuthLandingPage: React.FC<AuthLandingPageProps> = ({ onOpenSecurity
   const [copiedHostname, setCopiedHostname] = useState(false);
 
   const currentHostname = typeof window !== 'undefined' ? window.location.hostname : '';
-  const firebaseProjectId = appletConfig.projectId || 'supportrules-480714';
+  const firebaseProjectId = import.meta.env.VITE_FIREBASE_PROJECT_ID || appletConfig.projectId || 'supportrules-480714';
   const consoleSettingsUrl = `https://console.firebase.google.com/project/${firebaseProjectId}/authentication/settings`;
   const gcpIdentityUrl = `https://console.cloud.google.com/customer-identity/settings?project=${firebaseProjectId}`;
 
