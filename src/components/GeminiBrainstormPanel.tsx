@@ -21,10 +21,55 @@ import {
   Clock,
   Database
 } from 'lucide-react';
+import Markdown from 'react-markdown';
 import { ChatMessage, KnowledgeNode, JournalEntry } from '../types';
 import { ApiService } from '../services/apiService';
 import { StorageService } from '../services/storageService';
 import { useAuth } from '../context/AuthContext';
+
+const MarkdownMessage: React.FC<{ content: string; isUser: boolean }> = ({ content, isUser }) => {
+  if (isUser) {
+    return <div className="whitespace-pre-wrap leading-relaxed">{content}</div>;
+  }
+
+  return (
+    <div className="text-xs sm:text-sm leading-relaxed space-y-2">
+      <Markdown
+        components={{
+          p: ({ children }) => <p className="mb-2 last:mb-0 leading-relaxed text-slate-200">{children}</p>,
+          strong: ({ children }) => <strong className="font-semibold text-white">{children}</strong>,
+          em: ({ children }) => <em className="italic text-slate-300">{children}</em>,
+          h1: ({ children }) => <h1 className="text-base font-bold text-white mt-3 mb-1.5 pb-1 border-b border-slate-700/60">{children}</h1>,
+          h2: ({ children }) => <h2 className="text-sm font-semibold text-white mt-2.5 mb-1">{children}</h2>,
+          h3: ({ children }) => <h3 className="text-xs font-semibold text-sky-300 mt-2 mb-1 uppercase tracking-wide">{children}</h3>,
+          ul: ({ children }) => <ul className="list-disc list-outside ml-4 space-y-1 my-2 text-slate-200">{children}</ul>,
+          ol: ({ children }) => <ol className="list-decimal list-outside ml-4 space-y-1 my-2 text-slate-200">{children}</ol>,
+          li: ({ children }) => <li className="leading-relaxed pl-0.5">{children}</li>,
+          blockquote: ({ children }) => (
+            <blockquote className="border-l-2 border-indigo-400 pl-3 py-1 my-2 text-slate-300 italic bg-slate-900/40 rounded-r">
+              {children}
+            </blockquote>
+          ),
+          code: ({ children, className }) => {
+            const isBlock = Boolean(className);
+            return isBlock ? (
+              <code className="block bg-slate-950/80 p-2.5 rounded-lg text-sky-300 font-mono text-[11px] overflow-x-auto border border-slate-700/60 my-2">
+                {children}
+              </code>
+            ) : (
+              <code className="bg-slate-950/70 text-sky-300 font-mono text-[11px] px-1.5 py-0.5 rounded border border-slate-700/50">
+                {children}
+              </code>
+            );
+          },
+          hr: () => <hr className="border-slate-700/60 my-3" />
+        }}
+      >
+        {content}
+      </Markdown>
+    </div>
+  );
+};
 
 interface GeminiBrainstormPanelProps {
   messages: ChatMessage[];
@@ -468,13 +513,13 @@ export const GeminiBrainstormPanel: React.FC<GeminiBrainstormPanelProps> = ({
                 </div>
 
                 <div
-                  className={`p-4 rounded-2xl text-xs sm:text-sm leading-relaxed whitespace-pre-wrap ${
+                  className={`p-4 rounded-2xl text-xs sm:text-sm leading-relaxed ${
                     msg.role === 'user'
                       ? 'bg-indigo-600 text-white rounded-br-none shadow-md shadow-indigo-600/20'
                       : 'bg-slate-800/90 border border-slate-700/80 text-slate-200 rounded-bl-none shadow-sm'
                   }`}
                 >
-                  {msg.text}
+                  <MarkdownMessage content={msg.text} isUser={msg.role === 'user'} />
                 </div>
 
                 {/* Turn Actions */}
