@@ -1,0 +1,6 @@
+{
+  "name": "Personal Gemini Journal",
+  "description": "An authenticated, zero-trust AI journaling and brainstorming application with server-side Gemini integration and isolated cloud document storage.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

@@ -1,0 +1,43 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Default deny all access
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // Zero-trust tenant isolation: Each user only has access to their own data tree
+    match /users/{userId} {
+      allow read, write: if request.auth != null && request.auth.uid == userId;
+
+      // Journals and brainstorming sessions
+      match /journals/{journalId} {
+        allow read, list, delete: if request.auth != null && request.auth.uid == userId;
+        
+        allow create: if request.auth != null 
+          && request.auth.uid == userId
+          && request.resource.data.userId == userId
+          && request.resource.data.title is string
+          && request.resource.data.title.size() <= 200
+          && request.resource.data.content is string
+          && request.resource.data.content.size() <= 30000;
+
+        allow update: if request.auth != null 
+          && request.auth.uid == userId
+          && request.resource.data.userId == userId
+          && resource.data.userId == userId
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+            'title', 'content', 'summary', 'keyTakeaways', 'actionItems', 
+            'sentiment', 'tags', 'updatedAt', 'messages', 'isBookmarked'
+          ]);
+      }
+
+      // Security audit logs and session history
+      match /audit_logs/{logId} {
+        allow read, list: if request.auth != null && request.auth.uid == userId;
+        allow create: if request.auth != null && request.auth.uid == userId;
+        allow update, delete: if false; // Immutable audit log
+      }
+    }
+  }
+}

@@ -1,0 +1,89 @@
+{
+  "entities": {
+    "UserProfile": {
+      "title": "UserProfile",
+      "description": "User profile with isolation metadata",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string" },
+        "email": { "type": "string" },
+        "displayName": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "lastLoginAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["uid", "email"]
+    },
+    "JournalEntry": {
+      "title": "JournalEntry",
+      "description": "Authenticated user journal entry and multi-turn brainstorming session",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "userId": { "type": "string" },
+        "title": { "type": "string" },
+        "content": { "type": "string" },
+        "summary": { "type": "string" },
+        "sentiment": { "type": "string", "enum": ["energized", "reflective", "focused", "contemplative", "neutral"] },
+        "tags": { "type": "array", "items": { "type": "string" } },
+        "keyTakeaways": { "type": "array", "items": { "type": "string" } },
+        "actionItems": { 
+          "type": "array", 
+          "items": { 
+            "type": "object",
+            "properties": {
+              "id": { "type": "string" },
+              "text": { "type": "string" },
+              "completed": { "type": "boolean" }
+            },
+            "required": ["id", "text", "completed"]
+          } 
+        },
+        "messages": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "id": { "type": "string" },
+              "role": { "type": "string", "enum": ["user", "model", "system"] },
+              "text": { "type": "string" },
+              "timestamp": { "type": "string" }
+            },
+            "required": ["id", "role", "text", "timestamp"]
+          }
+        },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" },
+        "hashSignature": { "type": "string" },
+        "isBookmarked": { "type": "boolean" }
+      },
+      "required": ["id", "userId", "title", "createdAt", "updatedAt"]
+    },
+    "AuditLog": {
+      "title": "AuditLog",
+      "description": "Tamper-proof audit logs of user AI and database operations",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "userId": { "type": "string" },
+        "action": { "type": "string" },
+        "details": { "type": "string" },
+        "timestamp": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "userId", "action", "timestamp"]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": "UserProfile",
+      "description": "User profile document"
+    },
+    "/users/{userId}/journals/{journalId}": {
+      "schema": "JournalEntry",
+      "description": "User journal entries and AI multi-turn dialogues"
+    },
+    "/users/{userId}/audit_logs/{logId}": {
+      "schema": "AuditLog",
+      "description": "Immutable security log of actions performed by or for the user"
+    }
+  }
+}
