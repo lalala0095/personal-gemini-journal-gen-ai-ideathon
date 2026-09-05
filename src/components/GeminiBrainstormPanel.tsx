@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Sparkles, Send, Bot, User, ArrowDownToLine, RefreshCw, AlertCircle, HelpCircle } from 'lucide-react';
-import { ChatMessage } from '../types';
+import { Sparkles, Send, Bot, User, ArrowDownToLine, RefreshCw, AlertCircle, HelpCircle, Brain } from 'lucide-react';
+import { ChatMessage, KnowledgeNode } from '../types';
 import { ApiService } from '../services/apiService';
 import { useAuth } from '../context/AuthContext';
 
@@ -9,13 +9,17 @@ interface GeminiBrainstormPanelProps {
   onUpdateMessages: (messages: ChatMessage[]) => void;
   onAppendToJournal: (text: string) => void;
   journalContent: string;
+  knowledgeNodes?: KnowledgeNode[];
+  onOpenMemoryPalace?: () => void;
 }
 
 export const GeminiBrainstormPanel: React.FC<GeminiBrainstormPanelProps> = ({
   messages,
   onUpdateMessages,
   onAppendToJournal,
-  journalContent
+  journalContent,
+  knowledgeNodes = [],
+  onOpenMemoryPalace
 }) => {
   const { token } = useAuth();
   const [input, setInput] = useState('');
@@ -52,7 +56,8 @@ export const GeminiBrainstormPanel: React.FC<GeminiBrainstormPanelProps> = ({
       const response = await ApiService.sendChatMessage(
         token,
         newHistory,
-        journalContent ? `Current Journal Draft: ${journalContent.slice(0, 800)}` : undefined
+        journalContent ? `Current Journal Draft: ${journalContent.slice(0, 800)}` : undefined,
+        knowledgeNodes
       );
       onUpdateMessages([...newHistory, response]);
     } catch (err: any) {
@@ -79,11 +84,25 @@ export const GeminiBrainstormPanel: React.FC<GeminiBrainstormPanelProps> = ({
           </div>
           <div>
             <h3 className="text-xs font-semibold text-slate-200">Gemini Brainstorming Partner</h3>
-            <p className="text-[10px] text-slate-400">Multi-turn introspective dialogue (Gemini 2.5 Flash)</p>
+            <div className="flex items-center gap-1.5 text-[10px] text-slate-400">
+              <span>Gemini 2.5 Flash</span>
+              {knowledgeNodes.length > 0 && (
+                <>
+                  <span>•</span>
+                  <button 
+                    onClick={onOpenMemoryPalace}
+                    className="text-indigo-400 hover:text-indigo-300 font-medium flex items-center gap-1 transition"
+                  >
+                    <Brain className="w-3 h-3" />
+                    <span>{knowledgeNodes.length} Memory Nodes</span>
+                  </button>
+                </>
+              )}
+            </div>
           </div>
         </div>
         <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-slate-800 text-slate-300 border border-slate-700">
-          Server-Proxied
+          Rate-Guarded
         </span>
       </div>
 

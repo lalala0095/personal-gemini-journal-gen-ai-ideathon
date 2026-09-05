@@ -38,6 +38,18 @@ service cloud.firestore {
         allow create: if request.auth != null && request.auth.uid == userId;
         allow update, delete: if false; // Immutable audit log
       }
+
+      // Knowledge Hub / Memory Palace items for the agent's long-term context
+      match /knowledge_hub/{knowledgeId} {
+        allow read, list, delete: if request.auth != null && request.auth.uid == userId;
+        allow create, update: if request.auth != null 
+          && request.auth.uid == userId
+          && request.resource.data.userId == userId
+          && request.resource.data.title is string
+          && request.resource.data.title.size() <= 200
+          && request.resource.data.summary is string
+          && request.resource.data.summary.size() <= 5000;
+      }
     }
   }
 }

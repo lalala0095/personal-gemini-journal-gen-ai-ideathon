@@ -4,10 +4,17 @@ import { useAuth } from '../context/AuthContext';
 
 interface NavbarProps {
   onOpenSecurityModal: () => void;
+  onOpenMemoryPalace: () => void;
   onNewJournal: () => void;
+  knowledgeCount?: number;
 }
 
-export const Navbar: React.FC<NavbarProps> = ({ onOpenSecurityModal, onNewJournal }) => {
+export const Navbar: React.FC<NavbarProps> = ({ 
+  onOpenSecurityModal, 
+  onOpenMemoryPalace, 
+  onNewJournal,
+  knowledgeCount = 0
+}) => {
   const { user, isFirebaseLive, signInWithGoogle, signOutUser } = useAuth();
 
   return (
@@ -33,6 +40,23 @@ export const Navbar: React.FC<NavbarProps> = ({ onOpenSecurityModal, onNewJourna
 
         {/* Right Actions */}
         <div className="flex items-center gap-2 sm:gap-3">
+          {/* Memory Palace (Agent Knowledge Hub) Gimmick Button */}
+          {user && (
+            <button
+              id="memory-palace-btn"
+              onClick={onOpenMemoryPalace}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 text-white shadow-sm shadow-indigo-500/20 transition"
+              title="Open Memory Palace (Agent Knowledge Hub)"
+            >
+              <span>🧠 Memory Palace</span>
+              {knowledgeCount > 0 && (
+                <span className="px-1.5 py-0.2 bg-white/20 text-white text-[10px] rounded-full font-bold">
+                  {knowledgeCount}
+                </span>
+              )}
+            </button>
+          )}
+
           {/* Security & Isolation Audit Inspector */}
           <button
             id="security-audit-btn"

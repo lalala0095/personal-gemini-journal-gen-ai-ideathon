@@ -6,18 +6,21 @@ import { JournalEditor } from './components/JournalEditor';
 import { GeminiBrainstormPanel } from './components/GeminiBrainstormPanel';
 import { SummaryCard } from './components/SummaryCard';
 import { SecurityModal } from './components/SecurityModal';
+import { MemoryPalaceModal } from './components/MemoryPalaceModal';
 import { StorageService } from './services/storageService';
 import { ApiService } from './services/apiService';
-import { JournalEntry, ChatMessage } from './types';
-import { PanelLeftClose, PanelLeft, Sparkles, Shield, AlertCircle } from 'lucide-react';
+import { JournalEntry, ChatMessage, KnowledgeNode } from './types';
+import { PanelLeftClose, PanelLeft, Sparkles, Shield, AlertCircle, Brain } from 'lucide-react';
 
 function JournalMain() {
   const { user, token } = useAuth();
   const [journals, setJournals] = useState<JournalEntry[]>([]);
   const [activeJournal, setActiveJournal] = useState<JournalEntry | null>(null);
+  const [knowledgeNodes, setKnowledgeNodes] = useState<KnowledgeNode[]>([]);
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
   const [isBrainstormOpen, setIsBrainstormOpen] = useState(true);
   const [isSecurityModalOpen, setIsSecurityModalOpen] = useState(false);
+  const [isMemoryPalaceOpen, setIsMemoryPalaceOpen] = useState(false);
   const [isSynthesizing, setIsSynthesizing] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [notification, setNotification] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
@@ -44,20 +47,22 @@ function JournalMain() {
     };
   }, [user]);
 
-  // Load user journals whenever user changes
+  // Load user journals and knowledge hub whenever user changes
   useEffect(() => {
     if (!user) {
       setJournals([]);
       setActiveJournal(null);
+      setKnowledgeNodes([]);
       return;
     }
 
-    const loadEntries = async () => {
+    const loadUserData = async () => {
       try {
-        const loaded = await StorageService.getUserJournals(user.uid);
-        setJournals(loaded);
-        if (loaded.length > 0) {
-          setActiveJournal(loaded[0]);
+        // 1. Load Journal Entries
+        const loadedJournals = await StorageService.getUserJournals(user.uid);
+        setJournals(loadedJournals);
+        if (loadedJournals.length > 0) {
+          setActiveJournal(loadedJournals[0]);
         } else {
           // Initialize a welcoming first entry
           const firstEntry: JournalEntry = {
@@ -70,27 +75,28 @@ Key Security Highlights:
 1. **Isolated Cloud Storage**: All entries are scoped strictly to /users/${user.uid}/journals/*, eliminating cross-user leakage.
 2. **Zero Browser Exposure**: The Gemini API key is managed securely on the server via Google Cloud Secret Manager.
 3. **Cognitive Privacy Shield**: An integrated DLP scanner alerts you before sensitive tokens or credentials leave your editor.
-4. **AI Introspection & Brainstorming**: Use the panel on the right to bounce thoughts with Gemini 2.5 Flash.
+4. **Agent Memory Palace**: Your personal Knowledge Hub stores key goals, projects, and reflections across sessions under /users/${user.uid}/knowledge_hub/*.
+5. **AI Introspection & Brainstorming**: Use the panel on the right to bounce thoughts with Gemini 2.5 Flash.
 
 Try writing your current goals, questions, or ideas here, then click "Synthesize Insights" above!`,
-            summary: 'An introduction to the zero-trust Personal Gemini Journal, highlighting database isolation, server-side secret management, and AI reflection features.',
+            summary: 'An introduction to the zero-trust Personal Gemini Journal, highlighting database isolation, server-side secret management, and agent Memory Palace capabilities.',
             sentiment: 'focused',
             sentimentScore: 92,
             keyTakeaways: [
-              'Zero-trust tenant isolation strictly protects private journals',
+              'Zero-trust tenant isolation strictly protects private journals and memory palace nodes',
               'Gemini 2.5 Flash runs entirely server-proxied without browser key leakage',
-              'Real-time DLP scans prevent accidental credential exposure'
+              'Long-term context is remembered across conversations via the Knowledge Hub'
             ],
             actionItems: [
-              { id: 'act-1', text: 'Open the Security Inspector to review STRIDE compliance', completed: false, category: 'task' },
+              { id: 'act-1', text: 'Open the Memory Palace to explore your agent long-term memory', completed: false, category: 'task' },
               { id: 'act-2', text: 'Brainstorm a new project or reflection with Gemini', completed: false, category: 'creative' }
             ],
-            tags: ['security', 'getting-started', 'gemini'],
+            tags: ['security', 'getting-started', 'gemini', 'memory-palace'],
             messages: [
               {
                 id: 'msg-init',
                 role: 'model',
-                text: 'Hello! I am your personal Gemini brainstorming companion. Everything we discuss is stored in your private, isolated tenant. What is on your mind today?',
+                text: 'Hello! I am your personal Gemini brainstorming companion. I have loaded your private Knowledge Hub memory. What would you like to explore or reflect on today?',
                 timestamp: new Date().toISOString()
               }
             ],
@@ -101,12 +107,16 @@ Try writing your current goals, questions, or ideas here, then click "Synthesize
           setJournals([firstEntry]);
           setActiveJournal(firstEntry);
         }
+
+        // 2. Load Knowledge Hub Nodes
+        const loadedNodes = await StorageService.getUserKnowledgeHub(user.uid);
+        setKnowledgeNodes(loadedNodes);
       } catch (err) {
-        console.error('Failed to load journals:', err);
+        console.error('Failed to load user data:', err);
       }
     };
 
-    loadEntries();
+    loadUserData();
   }, [user]);
 
   // Debounced auto-save whenever active journal updates
@@ -206,7 +216,29 @@ Try writing your current goals, questions, or ideas here, then click "Synthesize
         hashSignature: summaryData.hashSignature
       });
 
-      showToast('Synthesized with Gemini 2.5 Flash');
+      // Automatically persist any synthesized knowledge nodes into the Knowledge Hub
+      if (summaryData.extractedKnowledge && summaryData.extractedKnowledge.length > 0) {
+        const newNodes: KnowledgeNode[] = summaryData.extractedKnowledge.map((item, idx) => ({
+          id: `kn-${Date.now()}-${idx}`,
+          userId: user.uid,
+          category: item.category || 'General',
+          title: item.title,
+          summary: item.summary,
+          keyTakeaways: item.keyTakeaways || [],
+          confidence: 0.95,
+          lastMentioned: new Date().toISOString(),
+          createdAt: new Date().toISOString()
+        }));
+
+        for (const node of newNodes) {
+          await StorageService.saveKnowledgeNode(user.uid, node);
+        }
+
+        setKnowledgeNodes(prev => [...newNodes, ...prev]);
+        showToast(`Synthesized insights & stored ${newNodes.length} new Memory Palace nodes!`);
+      } else {
+        showToast('Synthesized with Gemini 2.5 Flash');
+      }
     } catch (err: any) {
       showToast(err.message || 'Summarization failed', 'error');
     } finally {
@@ -231,7 +263,9 @@ Try writing your current goals, questions, or ideas here, then click "Synthesize
       {/* Main Top Navbar */}
       <Navbar
         onOpenSecurityModal={() => setIsSecurityModalOpen(true)}
+        onOpenMemoryPalace={() => setIsMemoryPalaceOpen(true)}
         onNewJournal={handleNewJournal}
+        knowledgeCount={knowledgeNodes.length}
       />
 
       {/* Main Application Layout */}
@@ -255,14 +289,24 @@ Try writing your current goals, questions, or ideas here, then click "Synthesize
         <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
           {/* Sidebar toggle bar */}
           <div className="px-4 py-2 border-b border-slate-800/80 bg-slate-950/60 flex items-center justify-between text-xs">
-            <button
-              onClick={() => setIsSidebarOpen(!isSidebarOpen)}
-              className="flex items-center gap-1.5 text-slate-400 hover:text-white transition"
-              title={isSidebarOpen ? 'Collapse sidebar' : 'Expand sidebar'}
-            >
-              {isSidebarOpen ? <PanelLeftClose className="w-4 h-4" /> : <PanelLeft className="w-4 h-4" />}
-              <span className="hidden sm:inline">{isSidebarOpen ? 'Hide History' : 'Show History'}</span>
-            </button>
+            <div className="flex items-center gap-3">
+              <button
+                onClick={() => setIsSidebarOpen(!isSidebarOpen)}
+                className="flex items-center gap-1.5 text-slate-400 hover:text-white transition"
+                title={isSidebarOpen ? 'Collapse sidebar' : 'Expand sidebar'}
+              >
+                {isSidebarOpen ? <PanelLeftClose className="w-4 h-4" /> : <PanelLeft className="w-4 h-4" />}
+                <span className="hidden sm:inline">{isSidebarOpen ? 'Hide History' : 'Show History'}</span>
+              </button>
+
+              <button
+                onClick={() => setIsMemoryPalaceOpen(true)}
+                className="flex items-center gap-1.5 text-xs text-indigo-400 hover:text-indigo-300 transition font-medium"
+              >
+                <Brain className="w-3.5 h-3.5 text-indigo-400" />
+                <span>Memory Palace ({knowledgeNodes.length} Nodes)</span>
+              </button>
+            </div>
 
             <div className="text-[11px] text-slate-400 font-mono flex items-center gap-1.5">
               <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
@@ -318,7 +362,7 @@ Try writing your current goals, questions, or ideas here, then click "Synthesize
           </div>
         </div>
 
-        {/* Right Panel: Gemini Multi-Turn Brainstorming */}
+        {/* Right Panel: Gemini Multi-Turn Brainstorming with Memory Palace Context */}
         {isBrainstormOpen && activeJournal && (
           <div className="w-80 lg:w-96 border-l border-slate-800 shrink-0 hidden md:block">
             <GeminiBrainstormPanel
@@ -328,6 +372,8 @@ Try writing your current goals, questions, or ideas here, then click "Synthesize
                 handleUpdateJournal({ content: (activeJournal.content || '') + text })
               }
               journalContent={activeJournal.content}
+              knowledgeNodes={knowledgeNodes}
+              onOpenMemoryPalace={() => setIsMemoryPalaceOpen(true)}
             />
           </div>
         )}
@@ -337,6 +383,22 @@ Try writing your current goals, questions, or ideas here, then click "Synthesize
       <SecurityModal
         isOpen={isSecurityModalOpen}
         onClose={() => setIsSecurityModalOpen(false)}
+      />
+
+      {/* Memory Palace (Agent Knowledge Hub) Modal */}
+      <MemoryPalaceModal
+        isOpen={isMemoryPalaceOpen}
+        onClose={() => setIsMemoryPalaceOpen(false)}
+        userId={user?.uid || 'anonymous'}
+        token={token}
+        knowledgeNodes={knowledgeNodes}
+        onUpdateNodes={(nodes) => setKnowledgeNodes(nodes)}
+        recentEntries={journals.map(j => ({
+          title: j.title,
+          summary: j.summary,
+          content: j.content,
+          createdAt: j.createdAt
+        }))}
       />
     </div>
   );

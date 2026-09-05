@@ -81,3 +81,30 @@ export interface DLPIssue {
   endIndex: number;
   suggestedReplacement: string;
 }
+
+export type KnowledgeCategory = 'Career' | 'Goals' | 'Learning' | 'Projects' | 'Personal' | 'Mindset' | 'Concerns';
+
+export interface KnowledgeNode {
+  id: string;
+  userId: string;
+  category: KnowledgeCategory;
+  title: string;
+  summary: string;
+  keyTakeaways: string[];
+  confidence: number;
+  lastMentioned: string;
+  sourceEntryId?: string;
+  createdAt: string;
+}
+
+export interface MemoryQueryResult {
+  answer: string;
+  relevantNodes: {
+    id: string;
+    title: string;
+    category: string;
+    snippet: string;
+  }[];
+  timestamp: string;
+}
+

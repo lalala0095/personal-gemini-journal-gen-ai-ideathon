@@ -9,3 +9,6 @@ coverage/
 key.json
 *.key
 .firebase/
+__pycache__/
+*.pyc
+.venv/

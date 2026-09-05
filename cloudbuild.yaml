@@ -1,0 +1,44 @@
+steps:
+  # 1. Build Docker image using the multi-stage Dockerfile
+  - name: 'gcr.io/cloud-builders/docker'
+    args:
+      - 'build'
+      - '-t'
+      - '$_REGION-docker.pkg.dev/$PROJECT_ID/journal-repo/personal-gemini-journal:$COMMIT_SHA'
+      - '-t'
+      - '$_REGION-docker.pkg.dev/$PROJECT_ID/journal-repo/personal-gemini-journal:latest'
+      - '.'
+
+  # 2. Push image to Artifact Registry
+  - name: 'gcr.io/cloud-builders/docker'
+    args:
+      - 'push'
+      - '--all-tags'
+      - '$_REGION-docker.pkg.dev/$PROJECT_ID/journal-repo/personal-gemini-journal'
+
+  # 3. Deploy to Cloud Run with Secret Manager binding
+  - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
+    entrypoint: gcloud
+    args:
+      - 'run'
+      - 'deploy'
+      - 'personal-gemini-journal'
+      - '--image'
+      - '$_REGION-docker.pkg.dev/$PROJECT_ID/journal-repo/personal-gemini-journal:$COMMIT_SHA'
+      - '--region'
+      - '$_REGION'
+      - '--platform'
+      - 'managed'
+      - '--allow-unauthenticated'
+      - '--set-secrets'
+      - 'GEMINI_API_KEY=GEMINI_API_KEY:latest'
+      - '--memory'
+      - '512Mi'
+      - '--cpu'
+      - '1'
+
+substitutions:
+  _REGION: 'us-central1'
+
+options:
+  logging: CLOUD_LOGGING_ONLY

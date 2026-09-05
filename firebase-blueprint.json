@@ -70,6 +70,24 @@
         "timestamp": { "type": "string", "format": "date-time" }
       },
       "required": ["id", "userId", "action", "timestamp"]
+    },
+    "KnowledgeNode": {
+      "title": "KnowledgeNode",
+      "description": "Long-term user knowledge hub item extracted from journals to give the AI agent continuous cross-session context",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "userId": { "type": "string" },
+        "category": { "type": "string", "enum": ["Career", "Goals", "Learning", "Projects", "Personal", "Mindset", "Concerns"] },
+        "title": { "type": "string" },
+        "summary": { "type": "string" },
+        "keyTakeaways": { "type": "array", "items": { "type": "string" } },
+        "confidence": { "type": "number" },
+        "lastMentioned": { "type": "string", "format": "date-time" },
+        "sourceEntryId": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "userId", "category", "title", "summary", "createdAt"]
     }
   },
   "firestore": {
@@ -80,6 +98,10 @@
     "/users/{userId}/journals/{journalId}": {
       "schema": "JournalEntry",
       "description": "User journal entries and AI multi-turn dialogues"
+    },
+    "/users/{userId}/knowledge_hub/{knowledgeId}": {
+      "schema": "KnowledgeNode",
+      "description": "User personal Knowledge Hub memory nodes for AI agent cross-session context"
     },
     "/users/{userId}/audit_logs/{logId}": {
       "schema": "AuditLog",

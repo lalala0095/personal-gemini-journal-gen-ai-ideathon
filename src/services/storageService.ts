@@ -8,7 +8,7 @@ import {
   orderBy
 } from 'firebase/firestore';
 import { db, isFirebaseConfigured } from './firebaseClient';
-import { JournalEntry, ActionItem } from '../types';
+import { JournalEntry, ActionItem, KnowledgeNode } from '../types';
 
 export class StorageService {
   /**
@@ -16,6 +16,10 @@ export class StorageService {
    */
   private static getLocalKey(userId: string): string {
     return `pj_tenant_vault_${userId}`;
+  }
+
+  private static getKnowledgeKey(userId: string): string {
+    return `pj_knowledge_hub_${userId}`;
   }
 
   /**
@@ -51,6 +55,140 @@ export class StorageService {
     }
 
     return entries.sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime());
+  }
+
+  /**
+   * Fetch all Knowledge Hub nodes for the user
+   * Scoped strictly to /users/{userId}/knowledge_hub
+   */
+  static async getUserKnowledgeHub(userId: string): Promise<KnowledgeNode[]> {
+    if (!userId) return [];
+
+    let nodes: KnowledgeNode[] = [];
+
+    if (isFirebaseConfigured && db) {
+      try {
+        const hubRef = collection(db, 'users', userId, 'knowledge_hub');
+        const snapshot = await getDocs(hubRef);
+        nodes = snapshot.docs.map(d => ({ id: d.id, ...d.data() } as KnowledgeNode));
+      } catch (err) {
+        console.warn('[Firestore Knowledge Hub] Query failed or offline, loading local mirror:', err);
+      }
+    }
+
+    if (nodes.length === 0) {
+      const localData = localStorage.getItem(this.getKnowledgeKey(userId));
+      if (localData) {
+        try {
+          nodes = JSON.parse(localData);
+        } catch (e) {
+          nodes = [];
+        }
+      }
+    }
+
+    // If still empty, provide high-value starter knowledge for demo
+    if (nodes.length === 0) {
+      nodes = [
+        {
+          id: 'kn-1',
+          userId,
+          category: 'Career',
+          title: 'Transitioning to AI Engineering',
+          summary: 'Actively shifting focus toward generative AI architectures, agent orchestration, and distributed ML systems.',
+          keyTakeaways: ['Focus on practical agentic workflows', 'Master Google Cloud Vertex & Gemini', 'Build authentic production demos'],
+          confidence: 0.95,
+          lastMentioned: new Date().toISOString(),
+          createdAt: new Date().toISOString()
+        },
+        {
+          id: 'kn-2',
+          userId,
+          category: 'Goals',
+          title: '30-Day Deep Work Habit',
+          summary: 'Protecting morning hours (8 AM - 11 AM) for uninterrupted technical design and cognitive breakthroughs.',
+          keyTakeaways: ['No notifications during deep block', 'Review daily learnings at evening reflection'],
+          confidence: 0.9,
+          lastMentioned: new Date().toISOString(),
+          createdAt: new Date().toISOString()
+        },
+        {
+          id: 'kn-3',
+          userId,
+          category: 'Learning',
+          title: 'Mastering Agent Development Kit (ADK)',
+          summary: 'Developing multi-agent patterns, long-term memory retrieval schemas, and deterministic tool chains.',
+          keyTakeaways: ['Use stateful session services', 'Implement zero-trust ABAC boundaries'],
+          confidence: 0.88,
+          lastMentioned: new Date().toISOString(),
+          createdAt: new Date().toISOString()
+        }
+      ];
+      localStorage.setItem(this.getKnowledgeKey(userId), JSON.stringify(nodes));
+    }
+
+    return nodes.sort((a, b) => new Date(b.lastMentioned).getTime() - new Date(a.lastMentioned).getTime());
+  }
+
+  /**
+   * Save or update a Knowledge Node
+   */
+  static async saveKnowledgeNode(userId: string, node: KnowledgeNode): Promise<void> {
+    if (!userId) return;
+
+    const nodeToSave: KnowledgeNode = {
+      ...node,
+      userId,
+      lastMentioned: new Date().toISOString()
+    };
+
+    if (isFirebaseConfigured && db) {
+      try {
+        const docRef = doc(db, 'users', userId, 'knowledge_hub', node.id);
+        await setDoc(docRef, nodeToSave, { merge: true });
+      } catch (err) {
+        console.warn('[Firestore] Live knowledge save failed, caching locally:', err);
+      }
+    }
+
+    try {
+      const existing = await this.getUserKnowledgeHub(userId);
+      const idx = existing.findIndex(n => n.id === node.id);
+      let updated: KnowledgeNode[];
+      if (idx >= 0) {
+        updated = [...existing];
+        updated[idx] = nodeToSave;
+      } else {
+        updated = [nodeToSave, ...existing];
+      }
+      localStorage.setItem(this.getKnowledgeKey(userId), JSON.stringify(updated));
+    } catch (e) {
+      console.error('Failed to update local knowledge hub:', e);
+    }
+  }
+
+  /**
+   * Delete a Knowledge Node
+   */
+  static async deleteKnowledgeNode(userId: string, nodeId: string): Promise<void> {
+    if (!userId || !nodeId) return;
+
+    if (isFirebaseConfigured && db) {
+      try {
+        const docRef = doc(db, 'users', userId, 'knowledge_hub', nodeId);
+        await deleteDoc(docRef);
+      } catch (err) {
+        console.warn('[Firestore] Delete knowledge node failed:', err);
+      }
+    }
+
+    try {
+      const existing = await this.getUserKnowledgeHub(userId);
+      const filtered = existing.filter(n => n.id !== nodeId);
+      localStorage.setItem(this.getKnowledgeKey(userId), JSON.stringify(filtered));
+    } catch (e) {
+      console.error('Failed to delete from local knowledge hub:', e);
+    }
   }
 
   /**
