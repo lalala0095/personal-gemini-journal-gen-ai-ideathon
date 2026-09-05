@@ -61,18 +61,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       });
       return () => unsubscribe();
     } else {
-      // If no live Firebase, but no sandbox user, initialize default secure demo user so user can immediately test!
-      if (!savedSandboxUser) {
-        const defaultDemo: UserProfile = {
-          uid: 'user_sec_' + Math.random().toString(36).substring(2, 9),
-          email: 'ideathon.builder@cloud.google',
-          displayName: 'Security Builder',
-          isAnonymous: false
-        };
-        localStorage.setItem('journal_sandbox_user', JSON.stringify(defaultDemo));
-        setUser(defaultDemo);
-        setToken(defaultDemo.uid);
-      }
       setLoading(false);
     }
   }, []);

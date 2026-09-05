@@ -95,8 +95,8 @@ function requireAuth(req: AuthenticatedRequest, res: Response, next: NextFunctio
   }
 
   const token = authHeader.split('Bearer ')[1]?.trim();
-  if (!token) {
-    return res.status(401).json({ error: 'Unauthorized', message: 'Empty bearer token.' });
+  if (!token || token === 'anonymous-token') {
+    return res.status(401).json({ error: 'Unauthorized', message: 'Authentication required. Anonymous tokens are rejected by zero-trust policy.' });
   }
 
   // Extract user payload from token (JWT or encoded user claims)

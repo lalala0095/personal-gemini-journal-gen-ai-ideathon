@@ -2,9 +2,12 @@ import { ChatMessage, JournalSummary, SecurityAuditReport, KnowledgeNode, Memory
 
 export class ApiService {
   private static getHeaders(token: string | null): HeadersInit {
+    if (!token || token === 'anonymous-token') {
+      throw new Error('Authentication required. Please sign in with Google to interact with Gemini.');
+    }
     return {
       'Content-Type': 'application/json',
-      'Authorization': `Bearer ${token || 'anonymous-token'}`
+      'Authorization': `Bearer ${token}`
     };
   }
 
