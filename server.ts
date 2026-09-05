@@ -210,16 +210,34 @@ app.get('/api/firebase-config', (req: Request, res: Response) => {
     }
   }
 
+  const rawApiKey = process.env.VITE_FIREBASE_API_KEY || process.env.FIREBASE_API_KEY || jsonConfig.apiKey || '';
+  const rawProjectId = process.env.VITE_FIREBASE_PROJECT_ID || process.env.FIREBASE_PROJECT_ID || jsonConfig.projectId || '';
+  const rawAuthDomain = process.env.VITE_FIREBASE_AUTH_DOMAIN || process.env.FIREBASE_AUTH_DOMAIN || jsonConfig.authDomain || '';
+
+  // Clean authDomain (must be bare hostname with no https:// protocol, paths, or query params)
+  let cleanAuthDomain = rawAuthDomain.trim().replace(/^https?:\/\//i, '').split('/')[0].split('?')[0];
+  if (!cleanAuthDomain && rawProjectId) {
+    cleanAuthDomain = `${rawProjectId.trim()}.firebaseapp.com`;
+  }
+
   const resolved = {
-    apiKey: process.env.VITE_FIREBASE_API_KEY || process.env.FIREBASE_API_KEY || jsonConfig.apiKey || '',
-    authDomain: process.env.VITE_FIREBASE_AUTH_DOMAIN || process.env.FIREBASE_AUTH_DOMAIN || jsonConfig.authDomain || '',
-    projectId: process.env.VITE_FIREBASE_PROJECT_ID || process.env.FIREBASE_PROJECT_ID || jsonConfig.projectId || '',
+    apiKey: rawApiKey,
+    authDomain: cleanAuthDomain,
+    projectId: rawProjectId,
     storageBucket: process.env.VITE_FIREBASE_STORAGE_BUCKET || process.env.FIREBASE_STORAGE_BUCKET || jsonConfig.storageBucket || '',
     messagingSenderId: process.env.VITE_FIREBASE_MESSAGING_SENDER_ID || process.env.FIREBASE_MESSAGING_SENDER_ID || jsonConfig.messagingSenderId || '',
     appId: process.env.VITE_FIREBASE_APP_ID || process.env.FIREBASE_APP_ID || jsonConfig.appId || '',
     firestoreDatabaseId: process.env.VITE_FIREBASE_DATABASE_ID || process.env.FIREBASE_DATABASE_ID || jsonConfig.firestoreDatabaseId || '',
     oAuthClientId: process.env.VITE_FIREBASE_OAUTH_CLIENT_ID || process.env.FIREBASE_OAUTH_CLIENT_ID || jsonConfig.oAuthClientId || ''
   };
+
+  console.log('[Firebase Config Request]', {
+    hasApiKey: Boolean(resolved.apiKey),
+    apiKeyPrefix: resolved.apiKey ? resolved.apiKey.substring(0, 6) + '...' : 'none',
+    authDomain: resolved.authDomain,
+    projectId: resolved.projectId,
+    source: process.env.FIREBASE_APPLET_CONFIG ? 'env_secret' : (jsonConfig.apiKey ? 'local_json' : 'empty')
+  });
 
   res.json(resolved);
 });

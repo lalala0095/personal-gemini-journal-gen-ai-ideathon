@@ -127,9 +127,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       localStorage.removeItem('journal_sandbox_user');
     } catch (err: any) {
       console.error('Google Sign-In Error:', err);
-      const errMsg = err.code === 'auth/unauthorized-domain' 
-        ? 'auth/unauthorized-domain: This domain is not authorized in your Firebase Console for Google OAuth.'
-        : (err.message || 'Failed to sign in with Google.');
+      let errMsg = err.message || 'Failed to sign in with Google.';
+      if (err.code === 'auth/unauthorized-domain') {
+        errMsg = 'auth/unauthorized-domain: This domain is not authorized in your Firebase Console for Google OAuth.';
+      } else if (err.code === 'auth/invalid-continue-uri') {
+        errMsg = 'auth/invalid-continue-uri: The continue URL or authDomain is not whitelisted in Firebase Console authorized domains or Google Cloud OAuth redirect URIs.';
+      }
       setError(errMsg);
       throw err;
     }

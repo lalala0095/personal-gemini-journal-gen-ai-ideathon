@@ -37,6 +37,8 @@ export const AuthLandingPage: React.FC<AuthLandingPageProps> = ({ onOpenSecurity
                                (error && error.includes('unauthorized-domain'));
   const isApiKeyInvalid = (authError && (authError.includes('api-key-not-valid') || authError.includes('invalid-api-key'))) ||
                           (error && (error.includes('api-key-not-valid') || error.includes('invalid-api-key')));
+  const isInvalidContinueUri = (authError && authError.includes('invalid-continue-uri')) ||
+                               (error && error.includes('invalid-continue-uri'));
 
   const handleCopyHostname = () => {
     if (currentHostname) {
@@ -310,6 +312,84 @@ export const AuthLandingPage: React.FC<AuthLandingPageProps> = ({ onOpenSecurity
                     <div>
                       <div className="text-xs font-semibold text-white">Ready to explore right now?</div>
                       <div className="text-[11px] text-slate-400">Launch the local authenticated sandbox session.</div>
+                    </div>
+                    <button
+                      onClick={handleSandboxSignIn}
+                      className="px-3.5 py-2 rounded-xl bg-gradient-to-r from-sky-600 to-indigo-600 hover:from-sky-500 hover:to-indigo-500 text-white text-xs font-semibold shadow-md flex items-center gap-2 transition shrink-0"
+                    >
+                      <KeyRound className="w-3.5 h-3.5" />
+                      <span>Launch Authenticated Sandbox</span>
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          ) : isInvalidContinueUri ? (
+            <div className="mt-6 p-4 sm:p-5 rounded-2xl bg-amber-950/40 border border-amber-500/40 text-left max-w-xl mx-auto shadow-2xl backdrop-blur-sm animate-in fade-in slide-in-from-bottom-2">
+              <div className="flex items-start gap-3">
+                <div className="p-2 rounded-xl bg-amber-500/20 text-amber-300 shrink-0 mt-0.5">
+                  <ShieldAlert className="w-5 h-5" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center justify-between gap-2">
+                    <h4 className="text-sm font-semibold text-white">OAuth Redirect URI Whitelist Needed</h4>
+                    <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-amber-500/20 text-amber-300 border border-amber-500/30">
+                      auth/invalid-continue-uri
+                    </span>
+                  </div>
+                  <p className="text-xs text-slate-300 mt-1.5 leading-relaxed">
+                    Firebase OAuth requires that both your app domain and the Firebase auth handler redirect URI are registered in your Google Cloud / Firebase Console.
+                  </p>
+
+                  <div className="mt-3 text-xs text-slate-300 space-y-2.5">
+                    <div className="flex items-start gap-2">
+                      <span className="w-5 h-5 rounded-full bg-slate-800 text-slate-200 flex items-center justify-center text-[10px] font-mono font-bold shrink-0 mt-0.5">1</span>
+                      <div>
+                        <span>Add current host to </span>
+                        <a 
+                          href={consoleSettingsUrl}
+                          target="_blank" 
+                          rel="noreferrer" 
+                          className="text-amber-300 hover:text-amber-200 underline font-medium"
+                        >
+                          Firebase Console &rarr; Auth &rarr; Settings &rarr; Authorized Domains
+                        </a>:
+                        <div className="mt-1 flex items-center gap-1.5 font-mono text-[11px] bg-slate-900 border border-slate-700/60 rounded px-2 py-1 text-sky-300">
+                          <span className="truncate">{currentHostname || 'current-domain.run.app'}</span>
+                          <button
+                            onClick={handleCopyHostname}
+                            className="ml-auto text-[10px] bg-slate-800 hover:bg-slate-700 text-slate-300 px-1.5 py-0.5 rounded flex items-center gap-1 shrink-0"
+                          >
+                            {copiedHostname ? <Check className="w-3 h-3 text-emerald-400" /> : <Copy className="w-3 h-3" />}
+                            <span>{copiedHostname ? 'Copied' : 'Copy'}</span>
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="flex items-start gap-2">
+                      <span className="w-5 h-5 rounded-full bg-slate-800 text-slate-200 flex items-center justify-center text-[10px] font-mono font-bold shrink-0 mt-0.5">2</span>
+                      <div>
+                        <span>Verify OAuth Client Authorized Redirect URI in </span>
+                        <a 
+                          href={`https://console.cloud.google.com/apis/credentials?project=${firebaseProjectId}`}
+                          target="_blank" 
+                          rel="noreferrer" 
+                          className="text-amber-300 hover:text-amber-200 underline font-medium"
+                        >
+                          Google Cloud Credentials
+                        </a>:
+                        <div className="mt-1 font-mono text-[11px] bg-slate-900 border border-slate-700/60 rounded px-2 py-1 text-slate-300 break-all">
+                          https://{firebaseProjectId}.firebaseapp.com/__/auth/handler
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="mt-4 pt-3 border-t border-amber-500/20 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2.5">
+                    <div>
+                      <div className="text-xs font-semibold text-white">Bypass & test immediately:</div>
+                      <div className="text-[11px] text-slate-400">Launch authenticated sandbox session.</div>
                     </div>
                     <button
                       onClick={handleSandboxSignIn}

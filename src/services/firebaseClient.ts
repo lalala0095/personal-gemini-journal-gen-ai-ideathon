@@ -20,9 +20,20 @@ export const isValidFirebaseApiKey = (key?: string): boolean => {
   return trimmed.length > 10 && !trimmed.includes('YOUR_') && !trimmed.includes('placeholder');
 };
 
+export const sanitizeAuthDomain = (domain?: string, projectId?: string): string => {
+  if (!domain || typeof domain !== 'string' || !domain.trim()) {
+    return projectId ? `${projectId.trim()}.firebaseapp.com` : '';
+  }
+  const stripped = domain.trim().replace(/^https?:\/\//i, '').split('/')[0].split('?')[0];
+  return stripped || (projectId ? `${projectId.trim()}.firebaseapp.com` : '');
+};
+
 let activeConfig: FirebaseConfigSchema = {
   apiKey: import.meta.env.VITE_FIREBASE_API_KEY || appletConfig.apiKey || '',
-  authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN || appletConfig.authDomain || '',
+  authDomain: sanitizeAuthDomain(
+    import.meta.env.VITE_FIREBASE_AUTH_DOMAIN || appletConfig.authDomain || '',
+    import.meta.env.VITE_FIREBASE_PROJECT_ID || appletConfig.projectId || ''
+  ),
   projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID || appletConfig.projectId || '',
   storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET || appletConfig.storageBucket || '',
   messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID || appletConfig.messagingSenderId || '',
@@ -55,12 +66,21 @@ const setupFirebaseInstances = (config: FirebaseConfigSchema) => {
     return false;
   }
 
+  const cleanDomain = sanitizeAuthDomain(config.authDomain, config.projectId);
+  const normalizedConfig: FirebaseConfigSchema = {
+    ...config,
+    authDomain: cleanDomain
+  };
+
   try {
-    app = getApps().length === 0 ? initializeApp(config) : getApps()[0];
+    app = getApps().length === 0 ? initializeApp(normalizedConfig) : getApps()[0];
     auth = getAuth(app);
-    const databaseId = config.firestoreDatabaseId || undefined;
+    const databaseId = normalizedConfig.firestoreDatabaseId || undefined;
     db = databaseId ? getFirestore(app, databaseId) : getFirestore(app);
     googleProvider = new GoogleAuthProvider();
+    googleProvider.setCustomParameters({
+      prompt: 'select_account'
+    });
     isFirebaseConfigured = true;
     subscribers.forEach(cb => {
       try { cb(); } catch (e) { console.error(e); }
