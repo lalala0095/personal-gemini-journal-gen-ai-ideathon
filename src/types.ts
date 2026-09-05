@@ -92,6 +92,7 @@ export interface KnowledgeNode {
   category: KnowledgeCategory;
   title: string;
   summary: string;
+  dataPoints?: string[]; // Specific facts, dates, key-values, and contextual details (e.g. "Birthday: September 4th")
   keyTakeaways: string[];
   confidence: number;
   lastMentioned: string;
@@ -115,6 +116,7 @@ export interface ConversationDistillationResult {
     category: KnowledgeCategory;
     title: string;
     summary: string;
+    dataPoints?: string[];
     keyTakeaways: string[];
     confidence: number;
   }[];

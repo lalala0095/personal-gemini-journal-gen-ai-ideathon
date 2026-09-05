@@ -24,6 +24,7 @@
         "content": { "type": "string" },
         "summary": { "type": "string" },
         "sentiment": { "type": "string", "enum": ["energized", "reflective", "focused", "contemplative", "neutral"] },
+        "sentimentScore": { "type": "number" },
         "tags": { "type": "array", "items": { "type": "string" } },
         "keyTakeaways": { "type": "array", "items": { "type": "string" } },
         "actionItems": { 
@@ -81,6 +82,7 @@
         "category": { "type": "string", "enum": ["Career", "Goals", "Learning", "Projects", "Personal", "Mindset", "Concerns"] },
         "title": { "type": "string" },
         "summary": { "type": "string" },
+        "dataPoints": { "type": "array", "items": { "type": "string" } },
         "keyTakeaways": { "type": "array", "items": { "type": "string" } },
         "confidence": { "type": "number" },
         "lastMentioned": { "type": "string", "format": "date-time" },

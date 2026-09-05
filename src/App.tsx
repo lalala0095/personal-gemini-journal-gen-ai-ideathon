@@ -12,7 +12,7 @@ import { DashboardView } from './components/DashboardView';
 import { StorageService } from './services/storageService';
 import { ApiService } from './services/apiService';
 import { JournalEntry, ChatMessage, KnowledgeNode } from './types';
-import { PanelLeftClose, PanelLeft, Sparkles, Shield, AlertCircle, Brain } from 'lucide-react';
+import { PanelLeftClose, PanelLeft, Sparkles, Shield, AlertCircle, Brain, Database } from 'lucide-react';
 
 function JournalMain() {
   const { user, token, loading } = useAuth();
@@ -133,7 +133,7 @@ Take a quiet moment to pause, reflect, and capture your thoughts.
               {
                 id: 'msg-init',
                 role: 'model',
-                text: 'Hello! I am your personal Gemini brainstorming companion. I have loaded your private Knowledge Hub memory. What would you like to explore or reflect on today?',
+                text: 'Hello! I am your personal Gemini brainstorming companion. As we chat and reflect, I will capture key context, facts, and dates into your Knowledge Hub. What would you like to explore or discuss today?',
                 timestamp: new Date().toISOString()
               }
             ],
@@ -286,6 +286,7 @@ Take a quiet moment to pause, reflect, and capture your thoughts.
           category: item.category || 'General',
           title: item.title,
           summary: item.summary,
+          dataPoints: item.dataPoints || [],
           keyTakeaways: item.keyTakeaways || [],
           confidence: 0.95,
           lastMentioned: new Date().toISOString(),
@@ -297,9 +298,9 @@ Take a quiet moment to pause, reflect, and capture your thoughts.
         }
 
         setKnowledgeNodes(prev => [...newNodes, ...prev]);
-        showToast(`Synthesized insights & stored ${newNodes.length} new Memory Palace nodes!`);
+        showToast(`Captured ${newNodes.length} context items into Knowledge Hub`);
       } else {
-        showToast('Synthesized with Gemini 3.5 Flash-Lite');
+        showToast('Journal analysis complete');
       }
     } catch (err: any) {
       showToast(err.message || 'Summarization failed', 'error');
@@ -411,8 +412,8 @@ Take a quiet moment to pause, reflect, and capture your thoughts.
                     onClick={() => setIsMemoryPalaceOpen(true)}
                     className="flex items-center gap-1.5 text-xs text-indigo-400 hover:text-indigo-300 transition font-medium"
                   >
-                    <Brain className="w-3.5 h-3.5 text-indigo-400" />
-                    <span>Memory Palace ({knowledgeNodes.length} Nodes)</span>
+                    <Database className="w-3.5 h-3.5 text-indigo-400" />
+                    <span>Knowledge Hub ({knowledgeNodes.length} Nodes)</span>
                   </button>
                 </div>
 

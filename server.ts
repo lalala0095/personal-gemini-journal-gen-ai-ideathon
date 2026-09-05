@@ -184,34 +184,53 @@ app.post('/api/gemini/chat', requireAuth, rateLimitGuard, async (req: Authentica
 
     const ai = getGeminiClient();
 
+    // Temporal context anchor to ground relative time references ("today", "this month", "my birthday")
+    const now = new Date();
+    const formattedCurrentDate = now.toLocaleDateString('en-US', {
+      weekday: 'long',
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric'
+    });
+    const currentISODate = now.toISOString().split('T')[0];
+
     // Map conversation turns to Gemini content structure
     const contents = messages.map((m: { role: string; text: string }) => ({
       role: m.role === 'model' ? 'model' : 'user',
       parts: [{ text: String(m.text || '') }]
     }));
 
-    // Inject User's Private Knowledge Hub (Long-Term Memory) into System Instruction
+    // Inject User's Private Knowledge & Context Hub into System Instruction
     let memoryContext = '';
     if (Array.isArray(knowledgeHub) && knowledgeHub.length > 0) {
-      const memoryItems = knowledgeHub.slice(0, 12).map((k: any) => 
-        `• [${k.category || 'General'}] "${k.title}": ${k.summary}${k.keyTakeaways?.length ? ` (Takeaways: ${k.keyTakeaways.join('; ')})` : ''}`
-      ).join('\n');
+      const memoryItems = knowledgeHub.slice(0, 15).map((k: any) => {
+        const dataPart = Array.isArray(k.dataPoints) && k.dataPoints.length > 0
+          ? ` [Data Points: ${k.dataPoints.join('; ')}]`
+          : '';
+        const takeawayPart = Array.isArray(k.keyTakeaways) && k.keyTakeaways.length > 0
+          ? ` [Takeaways: ${k.keyTakeaways.join('; ')}]`
+          : '';
+        return `• [${k.category || 'Personal'}] "${k.title}": ${k.summary}${dataPart}${takeawayPart}`;
+      }).join('\n');
 
-      memoryContext = `\n\n[USER'S PRIVATE KNOWLEDGE HUB - LONG TERM MEMORY]:
-The following key goals, learnings, projects, and personal reflections were synthesized from the user's past journal entries:
+      memoryContext = `\n\n[USER'S GROUNDED CONTEXT & KNOWLEDGE HUB]:
+The following concrete facts, key dates, preferences, and project details were captured from past sessions:
 ${memoryItems}
 
-CORE MEMORY OPERATING RULE:
-- You have persistent memory of this specific user. When relevant, subtly connect the user's current sharing to their existing knowledge nodes (e.g., "Given your focus on...", "Connecting back to what you noticed about...").
-- Do not dump the entire knowledge list; weave the context naturally, acting like an empathetic partner who truly remembers them across sessions.`;
+CORE CONTEXT GROUNDING RULES:
+- You have persistent factual context about this user. Respect their exact dates (e.g. Birthday, anniversaries, deadlines), stated preferences, technical choices, and background details.
+- Weave this context naturally into your dialogue. For example, if today is their birthday or a known milestone, warmly acknowledge it without being prompted if relevant, or ground your advice in their actual tech stack and goals.
+- Do not recite the raw knowledge list; use it naturally to provide tailored, context-aware responses.`;
     }
 
     const systemInstruction = `You are a thoughtful, empathetic, and intellectually curious Personal Journaling & Brainstorming Partner powered by Gemini 3.5 Flash-Lite.
+Current Reference Date & Time: ${formattedCurrentDate} (${currentISODate}, ${now.toISOString()})
+
 Your core principles:
-1. Support introspective thinking: Help the user uncover deeper feelings, assumptions, or possibilities.
-2. Ask one or two poignant, open-ended questions per turn rather than overwhelming them.
-3. If they are brainstorming, help structure their thoughts with clarity, highlighting creative connections.
-4. Maintain a warm, encouraging, and confidential tone.
+1. Support introspective thinking: Help the user explore ideas, reflect, structure thoughts, and solve problems.
+2. Ground your responses in the user's known context, specific dates, facts, and preferences.
+3. If they share a personal fact, milestone, or date (like their birthday, job change, or project deadline), acknowledge it with appropriate warmth and attention to detail.
+4. Maintain a supportive, collaborative, and confidential tone.
 User UID (isolated): ${req.userId}
 Context: ${userContext || 'Personal journal and reflective ideation session'}${memoryContext}`;
 
@@ -326,19 +345,33 @@ app.post('/api/gemini/summarize', requireAuth, rateLimitGuard, async (req: Authe
                 type: Type.STRING,
                 enum: ['Career', 'Goals', 'Learning', 'Projects', 'Personal', 'Mindset', 'Concerns']
               },
-              title: { type: Type.STRING, description: 'Short concept title (e.g. "Transitioning to AI", "Mindfulness Habit")' },
-              summary: { type: Type.STRING, description: 'A persistent core belief, goal, or realization about the user' },
+              title: { type: Type.STRING, description: 'Specific entity, fact category, or topic title (e.g. "Primary Tech Stack", "Birthday & Key Dates", "Work Routine")' },
+              summary: { type: Type.STRING, description: 'Factual, concrete context summary capturing exact dates, names, metrics, and details rather than vague platitudes' },
+              dataPoints: {
+                type: Type.ARRAY,
+                items: { type: Type.STRING },
+                description: 'Explicit facts and key-values captured (e.g. ["Birthday: September 4th", "Stack: TypeScript & React"])'
+              },
               keyTakeaways: { type: Type.ARRAY, items: { type: Type.STRING } }
             },
-            required: ['category', 'title', 'summary']
+            required: ['category', 'title', 'summary', 'dataPoints', 'keyTakeaways']
           },
-          description: '1 to 3 long-term knowledge items extracted from this entry to update the user personal Memory Palace / Knowledge Hub'
+          description: '1 to 3 persistent context and data nodes extracted from this entry to update the user Knowledge & Context Hub'
         }
       },
       required: ['summary', 'sentiment', 'sentimentScore', 'keyTakeaways', 'actionItems', 'tags']
     };
 
-    const prompt = `Analyze this personal journal entry and multi-turn brainstorming session. 
+    const nowSummary = new Date();
+    const formattedSummaryDate = nowSummary.toLocaleDateString('en-US', {
+      weekday: 'long',
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric'
+    });
+
+    const prompt = `Analyze this personal journal entry and multi-turn brainstorming session.
+Current Reference Date: ${formattedSummaryDate} (${nowSummary.toISOString().split('T')[0]})
 Title: "${title || 'Untitled Session'}"
 Content to analyze:
 ${combinedContent}
@@ -346,7 +379,8 @@ ${combinedContent}
 Extract:
 1. Executive summary & emotional tone
 2. Key takeaways and concrete action items
-3. 1 to 3 persistent knowledge nodes for the user's Long-Term Knowledge Hub (categorized as Career, Goals, Learning, Projects, Personal, Mindset, or Concerns) so future agent sessions remember this.`;
+3. 1 to 3 persistent context and data nodes for the user's Knowledge & Context Hub (categorized as Career, Goals, Learning, Projects, Personal, Mindset, or Concerns).
+IMPORTANT: Knowledge Hub is DATA CAPTURE FOR CONTEXT, not another memory or vague character description. Prioritize concrete facts, exact dates, names, metrics, tech stacks, and stated preferences over generic personality summaries.`;
 
     const response = await ai.models.generateContent({
       model: 'gemini-3.5-flash-lite',
@@ -392,21 +426,33 @@ app.post('/api/gemini/ask-memory', requireAuth, rateLimitGuard, async (req: Auth
 
     const ai = getGeminiClient();
 
-    const formattedNodes = (knowledgeNodes || []).slice(0, 20).map((n: any) =>
-      `[Node ID: ${n.id}] [Category: ${n.category}] "${n.title}": ${n.summary} (Key points: ${n.keyTakeaways?.join(', ') || 'N/A'})`
-    ).join('\n');
+    const nowQuery = new Date();
+    const formattedQueryDate = nowQuery.toLocaleDateString('en-US', {
+      weekday: 'long',
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric'
+    });
+
+    const formattedNodes = (knowledgeNodes || []).slice(0, 25).map((n: any) => {
+      const dataPointsStr = Array.isArray(n.dataPoints) && n.dataPoints.length > 0
+        ? ` [Captured Data: ${n.dataPoints.join('; ')}]`
+        : '';
+      return `[Node ID: ${n.id}] [Category: ${n.category}] "${n.title}": ${n.summary}${dataPointsStr} (Key points: ${n.keyTakeaways?.join(', ') || 'N/A'})`;
+    }).join('\n');
 
     const formattedEntries = (recentEntries || []).slice(0, 10).map((e: any) =>
       `[Entry: "${e.title}"] [Date: ${e.createdAt}]: ${e.summary || e.content?.slice(0, 250)}`
     ).join('\n');
 
-    const prompt = `You are the user's private Memory Palace Assistant.
-The user is asking a question about their own thoughts, goals, projects, concerns, or history:
+    const prompt = `You are the user's Context & Knowledge Hub Assistant.
+Current Reference Date: ${formattedQueryDate} (${nowQuery.toISOString().split('T')[0]})
+The user is asking a question about their captured context, facts, dates, goals, projects, or history:
 "${query}"
 
 Search ONLY within their private personal knowledge data below:
 
---- USER'S PRIVATE KNOWLEDGE NODES ---
+--- USER'S PRIVATE KNOWLEDGE & CONTEXT NODES ---
 ${formattedNodes || 'No knowledge nodes recorded yet.'}
 
 --- USER'S RECENT JOURNAL ARCHIVES ---
@@ -414,9 +460,9 @@ ${formattedEntries || 'No journal entries recorded yet.'}
 ---------------------------------------
 
 Instructions:
-1. Provide a direct, compassionate, and precise answer based strictly on the user's own data.
-2. Quote or reference specific nodes or dates where applicable.
-3. If their memory has no information about the query, acknowledge honestly: "I checked your private Knowledge Hub and past journals, but found no record regarding that."
+1. Provide a direct, factual, and precise answer based strictly on the user's captured data and dates.
+2. Quote or reference specific facts, dates, numbers, or nodes where applicable (e.g. "Your birthday is September 4th").
+3. If their Knowledge Hub has no information about the query, acknowledge honestly: "I checked your private Knowledge Hub and past journals, but found no record regarding that."
 4. Never invent or hallucinate facts not in their data.`;
 
     const memoryResponseSchema: Schema = {
@@ -496,6 +542,16 @@ app.post('/api/gemini/distill-conversation', requireAuth, rateLimitGuard, async 
 
     const ai = getGeminiClient();
 
+    // Temporal context anchor to ground relative dates (e.g. "today is my birthday", "tomorrow", "next week")
+    const nowDistill = new Date();
+    const formattedDistillDate = nowDistill.toLocaleDateString('en-US', {
+      weekday: 'long',
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric'
+    });
+    const currentISODate = nowDistill.toISOString().split('T')[0];
+
     const distillationSchema: Schema = {
       type: Type.OBJECT,
       properties: {
@@ -508,29 +564,55 @@ app.post('/api/gemini/distill-conversation', requireAuth, rateLimitGuard, async 
                 type: Type.STRING,
                 enum: ['Career', 'Goals', 'Learning', 'Projects', 'Personal', 'Mindset', 'Concerns']
               },
-              title: { type: Type.STRING, description: 'Concise concept or goal title (e.g. "Distributed Agent Pipeline", "Morning Deep Focus")' },
-              summary: { type: Type.STRING, description: 'A crystal-clear, durable insight, personal value, or working direction discovered from this dialogue' },
+              title: { 
+                type: Type.STRING, 
+                description: 'Specific entity, fact category, or topic title (e.g. "Birthday & Key Dates", "Primary Tech Stack", "Favorite Hobbies", "Company & Role", "Family & Pets")' 
+              },
+              summary: { 
+                type: Type.STRING, 
+                description: 'Factual, concrete context summary capturing exact dates, names, metrics, and details (e.g. "User\'s birthday is September 4th. Celebrated on September 4, 2026.")' 
+              },
+              dataPoints: {
+                type: Type.ARRAY,
+                items: { type: Type.STRING },
+                description: 'List of exact, explicit facts and key-values captured (e.g. ["Birthday: September 4th", "Date Stated: September 4, 2026", "Event: Birthday Celebration"])'
+              },
               keyTakeaways: { 
                 type: Type.ARRAY, 
                 items: { type: Type.STRING },
-                description: '2 to 3 sharp, memorable takeaways synthesized from the conversation'
+                description: '1 to 3 concrete context takeaways or rules for future conversation grounding'
               },
               confidence: { type: Type.NUMBER, description: 'Confidence score from 0.8 to 1.0 based on how clearly the user expressed this' }
             },
-            required: ['category', 'title', 'summary', 'keyTakeaways', 'confidence']
+            required: ['category', 'title', 'summary', 'dataPoints', 'keyTakeaways', 'confidence']
           },
-          description: '1 to 3 distinct, high-value knowledge nodes extracted from this conversation session'
+          description: '1 to 4 distinct, fact-grounded knowledge & context nodes extracted from this conversation session'
         },
         distillationSummary: {
           type: Type.STRING,
-          description: 'A 1-sentence recap of what durable knowledge was identified and formed'
+          description: 'A 1-sentence recap of what concrete context or data points were captured'
         }
       },
       required: ['newKnowledgeNodes', 'distillationSummary']
     };
 
-    const prompt = `You are an Autonomous Knowledge Synthesizer and Memory Palace Worker powered by Gemini 3.5 Flash-Lite.
-Your job is to read recent multi-turn User <-> AI conversations, extract core enduring knowledge about the user, compress it, and form structured Knowledge Hub nodes.
+    const prompt = `You are an Exact Context & Data Capture Engine powered by Gemini 3.5 Flash-Lite.
+Your mission is to capture CONCRETE FACTS, SPECIFIC DATA POINTS, DATES, ENTITIES, AND USER CONTEXT from recent User <-> AI conversations to maintain the user's Context & Knowledge Hub.
+
+CRITICAL DIRECTIVE:
+The Knowledge Hub is DATA CAPTURE FOR CONTEXT, NOT another poetic memory or vague character description.
+NEVER describe the user in general platitudes (e.g., DO NOT output: "User enjoys celebrations and personal growth", "User values mindfulness and self-improvement").
+INSTEAD, CAPTURE EXACT FACTS, DATES, AND CONTEXT DATA:
+- Specific dates and milestones: If the user says "it's my birthday today", extract the exact date! Reference Date is ${formattedDistillDate} (${currentISODate}) -> Capture "Birthday: September 4th", "Celebrated Date: ${currentISODate}".
+- Identity & Personal facts: Age, location, family members, pets, hobbies, favorite foods, dietary preferences.
+- Career & Roles: Job title, employer, industry, team size, tools used daily.
+- Projects & Technical choices: Frameworks, languages, repo names, libraries, cloud providers, APIs.
+- Deadlines & Objectives: Launch dates, target metrics, meeting dates, project horizons.
+- Stated rules & preferences: "Prefers concise code without comments", "Wants dark theme", "Working hours 9-5".
+
+REFERENCE TEMPORAL CONTEXT:
+- Current Reference Date: ${formattedDistillDate} (${currentISODate}, ${nowDistill.toISOString()})
+- Resolve relative terms like "today", "tomorrow", "yesterday", "this month", "my birthday is today" using this exact reference date.
 
 Context / Active Journal: "${journalTitle || 'Conversational Brainstorm'}"
 
@@ -538,16 +620,17 @@ Context / Active Journal: "${journalTitle || 'Conversational Brainstorm'}"
 ${conversationDialogue}
 ---------------------------------------------------------------
 
---- EXISTING KNOWLEDGE NODES ALREADY IN KNOWLEDGE HUB ---
+--- EXISTING CONTEXT & KNOWLEDGE NODES ALREADY CAPTURED ---
 ${knownNodesSnippet}
--------------------------------------------------------
+----------------------------------------------------------
 
-Rules for Knowledge Formation:
-1. Focus on enduring facts, declared priorities, creative solutions, personal values, or project decisions made by the user.
-2. Avoid duplicating existing nodes unless you are updating or evolving them with new clarity.
-3. Keep summaries dense, concise, and deeply relevant so future Gemini sessions can easily ground themselves.
-4. If the dialogue is merely casual greeting with no real knowledge, return an empty array for newKnowledgeNodes.
-5. Provide a crisp 1-sentence distillation summary of what was formed.`;
+Rules for Context Data Capture:
+1. Capture explicit data points (e.g. Birthday date, names of people/tools, specific numbers, deadlines, stated facts).
+2. For every node, populate 'dataPoints' with crisp "Key: Value" or factual statements (e.g. "Birthday: September 4th", "Role: Founder", "Stack: TypeScript & React").
+3. If the user mentioned a date like "today is my birthday", include the actual date ("September 4th" or current date) in the title, summary, and dataPoints.
+4. If an existing node already covers this topic, merge/update with the new concrete details.
+5. If the conversation turns are only pure casual greetings or small talk with zero factual context or preferences, return an empty array for newKnowledgeNodes.
+6. Provide a concise 1-sentence distillation summary stating the specific facts captured.`;
 
     const response = await ai.models.generateContent({
       model: 'gemini-3.5-flash-lite',
@@ -555,7 +638,7 @@ Rules for Knowledge Formation:
       config: {
         responseMimeType: 'application/json',
         responseSchema: distillationSchema,
-        temperature: 0.2
+        temperature: 0.1
       }
     });
 

@@ -12,7 +12,8 @@ import {
   Plus,
   MessageSquare,
   Lock,
-  Tag
+  Tag,
+  Database
 } from 'lucide-react';
 import { JournalEntry, KnowledgeNode } from '../types';
 
@@ -296,14 +297,14 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
           </div>
         </div>
 
-        {/* Right Column (1 Col): Memory Palace Highlights & Security */}
+        {/* Right Column (1 Col): Knowledge & Context Hub Highlights & Security */}
         <div className="space-y-6">
-          {/* Memory Palace Highlights */}
+          {/* Knowledge & Context Hub Highlights */}
           <div className="p-6 rounded-2xl bg-gradient-to-b from-indigo-950/40 to-slate-900/50 border border-indigo-500/20 space-y-4">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
-                <Brain className="w-4 h-4 text-indigo-400" />
-                <h3 className="text-sm font-semibold text-white">Memory Palace</h3>
+                <Database className="w-4 h-4 text-indigo-400" />
+                <h3 className="text-sm font-semibold text-white">Knowledge & Context Hub</h3>
               </div>
               <button
                 onClick={onOpenMemoryPalace}
@@ -315,27 +316,27 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
 
             <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-indigo-900/30 border border-indigo-700/40 text-[11px] text-indigo-200">
               <Sparkles className="w-3.5 h-3.5 text-indigo-400 shrink-0" />
-              <span>Automatically organizes key takeaways from your conversations</span>
+              <span>Captures concrete facts, key dates & context for AI grounding</span>
             </div>
 
             <p className="text-xs text-slate-400 leading-relaxed">
-              Your agent remembers persistent goals and mental models across all sessions:
+              Your AI partner uses these captured data points to ground its guidance in your actual reality:
             </p>
 
             {knowledgeNodes.length === 0 ? (
               <div className="p-4 rounded-xl bg-slate-950/50 border border-slate-800 text-center text-xs text-slate-500 space-y-2">
-                <p>No knowledge nodes extracted yet.</p>
+                <p>No context nodes recorded yet.</p>
                 <button
                   onClick={onOpenMemoryPalace}
                   className="text-indigo-400 hover:text-indigo-300 font-medium"
                 >
-                  + Add First Memory Node
+                  + Add First Context Node
                 </button>
               </div>
             ) : (
               <div className="space-y-2.5">
                 {knowledgeNodes.slice(0, 4).map((node) => (
-                  <div key={node.id} className="p-3 rounded-xl bg-slate-950/60 border border-slate-800/80 space-y-1">
+                  <div key={node.id} className="p-3 rounded-xl bg-slate-950/60 border border-slate-800/80 space-y-1.5">
                     <div className="flex items-center justify-between text-[10px]">
                       <span className="px-2 py-0.5 rounded-full font-semibold bg-indigo-500/20 text-indigo-300">
                         {node.category}
@@ -346,6 +347,21 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                     </div>
                     <h5 className="text-xs font-semibold text-slate-200">{node.title}</h5>
                     <p className="text-[11px] text-slate-400 line-clamp-2">{node.summary}</p>
+                    
+                    {/* Render first 2 captured data points if present */}
+                    {node.dataPoints && node.dataPoints.length > 0 && (
+                      <div className="flex flex-wrap gap-1 pt-0.5">
+                        {node.dataPoints.slice(0, 2).map((dp, i) => (
+                          <span
+                            key={i}
+                            className="inline-flex items-center gap-1 text-[10px] px-1.5 py-0.5 rounded bg-indigo-950/90 text-indigo-300 border border-indigo-800/60"
+                          >
+                            <Tag className="w-2.5 h-2.5 text-indigo-400 shrink-0" />
+                            <span className="truncate max-w-[200px]">{dp}</span>
+                          </span>
+                        ))}
+                      </div>
+                    )}
                   </div>
                 ))}
               </div>

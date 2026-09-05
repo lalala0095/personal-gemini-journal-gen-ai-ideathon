@@ -18,7 +18,8 @@ import {
   Loader2,
   CheckCircle,
   CheckCheck,
-  Clock
+  Clock,
+  Database
 } from 'lucide-react';
 import { ChatMessage, KnowledgeNode, JournalEntry } from '../types';
 import { ApiService } from '../services/apiService';
@@ -237,6 +238,7 @@ export const GeminiBrainstormPanel: React.FC<GeminiBrainstormPanelProps> = ({
             category: item.category,
             title: item.title,
             summary: item.summary,
+            dataPoints: item.dataPoints || [],
             keyTakeaways: item.keyTakeaways || [],
             confidence: item.confidence || 0.95,
             lastMentioned: nowIso,
@@ -253,9 +255,10 @@ export const GeminiBrainstormPanel: React.FC<GeminiBrainstormPanelProps> = ({
           onKnowledgeNodesUpdated(combinedNodes);
         }
 
-        setDistillStatus(`Saved ${savedNewNodes.length} new insight${savedNewNodes.length > 1 ? 's' : ''} to your Knowledge Hub.`);
+        const firstTitle = savedNewNodes[0]?.title ? ` ("${savedNewNodes[0].title}")` : '';
+        setDistillStatus(`Captured ${savedNewNodes.length} context item${savedNewNodes.length > 1 ? 's' : ''}${firstTitle} to Knowledge Hub.`);
       } else {
-        setDistillStatus('Knowledge Hub is already up to date with your latest conversation.');
+        setDistillStatus('Knowledge Hub is up to date with your latest conversation context.');
       }
     } catch (workerErr: any) {
       console.warn('[Insight Sync Notice]:', workerErr?.message || workerErr);
@@ -318,8 +321,8 @@ export const GeminiBrainstormPanel: React.FC<GeminiBrainstormPanelProps> = ({
                     onClick={onOpenMemoryPalace}
                     className="text-indigo-400 hover:text-indigo-300 font-medium flex items-center gap-1 transition"
                   >
-                    <Brain className="w-3.5 h-3.5" />
-                    <span>{knowledgeNodes.length} Memory Nodes Linked</span>
+                    <Database className="w-3.5 h-3.5" />
+                    <span>{knowledgeNodes.length} Context Nodes Linked</span>
                   </button>
                 </>
               )}
@@ -368,24 +371,24 @@ export const GeminiBrainstormPanel: React.FC<GeminiBrainstormPanelProps> = ({
                 title={
                   isAllAnalyzed
                     ? `All ${analyzedCount} conversation turns are synced to your Knowledge Hub.`
-                    : `Syncs key takeaways from your ${unanalyzedCount} recent message${unanalyzedCount === 1 ? '' : 's'} into your Memory Palace.`
+                    : `Capture facts & context from your ${unanalyzedCount} recent message${unanalyzedCount === 1 ? '' : 's'} into Knowledge Hub.`
                 }
               >
                 {isDistilling ? (
                   <>
                     <Loader2 className="w-3.5 h-3.5 animate-spin text-amber-400" />
-                    <span className="hidden sm:inline">Syncing Insights...</span>
+                    <span className="hidden sm:inline">Capturing Context...</span>
                   </>
                 ) : isAllAnalyzed ? (
                   <>
                     <CheckCircle className="w-3.5 h-3.5 text-emerald-400" />
-                    <span className="hidden sm:inline">All Synced ({analyzedCount})</span>
+                    <span className="hidden sm:inline">Context Synced ({analyzedCount})</span>
                   </>
                 ) : (
                   <>
                     <Sparkles className="w-3.5 h-3.5 text-indigo-400" />
                     <span className="hidden sm:inline">
-                      {unanalyzedCount > 0 ? `Sync Insights (${unanalyzedCount})` : 'Sync Insights'}
+                      {unanalyzedCount > 0 ? `Capture Context (${unanalyzedCount})` : 'Capture Context'}
                     </span>
                   </>
                 )}

@@ -87,44 +87,34 @@ export class StorageService {
       }
     }
 
-    // If still empty, provide high-value starter knowledge for demo
-    if (nodes.length === 0) {
-      nodes = [
-        {
-          id: 'kn-1',
-          userId,
-          category: 'Career',
-          title: 'Transitioning to AI Engineering',
-          summary: 'Actively shifting focus toward generative AI architectures, agent orchestration, and distributed ML systems.',
-          keyTakeaways: ['Focus on practical agentic workflows', 'Master Google Cloud Vertex & Gemini', 'Build authentic production demos'],
-          confidence: 0.95,
-          lastMentioned: new Date().toISOString(),
-          createdAt: new Date().toISOString()
-        },
-        {
-          id: 'kn-2',
-          userId,
-          category: 'Goals',
-          title: '30-Day Deep Work Habit',
-          summary: 'Protecting morning hours (8 AM - 11 AM) for uninterrupted technical design and cognitive breakthroughs.',
-          keyTakeaways: ['No notifications during deep block', 'Review daily learnings at evening reflection'],
-          confidence: 0.9,
-          lastMentioned: new Date().toISOString(),
-          createdAt: new Date().toISOString()
-        },
-        {
-          id: 'kn-3',
-          userId,
-          category: 'Learning',
-          title: 'Mastering Agent Development Kit (ADK)',
-          summary: 'Developing multi-agent patterns, long-term memory retrieval schemas, and deterministic tool chains.',
-          keyTakeaways: ['Use stateful session services', 'Implement zero-trust ABAC boundaries'],
-          confidence: 0.88,
-          lastMentioned: new Date().toISOString(),
-          createdAt: new Date().toISOString()
+    // Clean up any legacy pre-seeded mock nodes (e.g. kn-1, kn-2, kn-3 or old template titles)
+    const mockTitles = [
+      'Transitioning to AI Engineering',
+      '30-Day Deep Work Habit',
+      'Mastering Agent Development Kit (ADK)',
+      'Technical Role & Primary Architecture',
+      'Deep Work Schedule & Focus Routine',
+      'Communication & Output Preferences'
+    ];
+    const legacyMockNodes = nodes.filter(n => 
+      ['kn-1', 'kn-2', 'kn-3'].includes(n.id) || mockTitles.includes(n.title)
+    );
+
+    if (legacyMockNodes.length > 0) {
+      for (const mockNode of legacyMockNodes) {
+        if (isFirebaseConfigured && db) {
+          try {
+            const docRef = doc(db, 'users', userId, 'knowledge_hub', mockNode.id);
+            deleteDoc(docRef).catch(() => {});
+          } catch (e) {
+            // ignore
+          }
         }
-      ];
-      localStorage.setItem(this.getKnowledgeKey(userId), JSON.stringify(nodes));
+      }
+      nodes = nodes.filter(n => !['kn-1', 'kn-2', 'kn-3'].includes(n.id) && !mockTitles.includes(n.title));
+      try {
+        localStorage.setItem(this.getKnowledgeKey(userId), JSON.stringify(nodes));
+      } catch (e) {}
     }
 
     return nodes.sort((a, b) => new Date(b.lastMentioned).getTime() - new Date(a.lastMentioned).getTime());

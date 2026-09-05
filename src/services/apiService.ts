@@ -57,6 +57,7 @@ export class ApiService {
       category: any;
       title: string;
       summary: string;
+      dataPoints?: string[];
       keyTakeaways?: string[];
     }>;
   }> {

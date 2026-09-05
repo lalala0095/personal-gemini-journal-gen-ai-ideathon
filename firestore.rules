@@ -28,7 +28,7 @@ service cloud.firestore {
           && resource.data.userId == userId
           && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
             'title', 'content', 'summary', 'keyTakeaways', 'actionItems', 
-            'sentiment', 'tags', 'updatedAt', 'messages', 'isBookmarked'
+            'sentiment', 'sentimentScore', 'tags', 'hashSignature', 'updatedAt', 'messages', 'isBookmarked'
           ]);
       }
 
