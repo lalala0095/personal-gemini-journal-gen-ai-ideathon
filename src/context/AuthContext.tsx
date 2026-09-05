@@ -5,7 +5,15 @@ import {
   onAuthStateChanged,
   User as FirebaseUser
 } from 'firebase/auth';
-import { auth, googleProvider, isFirebaseConfigured } from '../services/firebaseClient';
+import {
+  auth,
+  googleProvider,
+  isFirebaseConfigured,
+  ensureFirebaseInitialized,
+  getAuthInstance,
+  getGoogleProvider,
+  onFirebaseInitialized
+} from '../services/firebaseClient';
 import { UserProfile } from '../types';
 
 interface AuthContextType {
@@ -26,6 +34,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [token, setToken] = useState<string | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
+  const [isLive, setIsLive] = useState<boolean>(isFirebaseConfigured);
 
   useEffect(() => {
     // Check local sandbox storage first
@@ -40,41 +49,72 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
     }
 
-    if (isFirebaseConfigured && auth) {
-      const unsubscribe = onAuthStateChanged(auth, async (fbUser: FirebaseUser | null) => {
-        if (fbUser) {
-          const userToken = await fbUser.getIdToken();
-          const profile: UserProfile = {
-            uid: fbUser.uid,
-            email: fbUser.email || '',
-            displayName: fbUser.displayName || 'Journaler',
-            photoURL: fbUser.photoURL || undefined
-          };
-          setUser(profile);
-          setToken(userToken);
-        } else if (!savedSandboxUser) {
-          // If no sandbox user either, clear
-          setUser(null);
-          setToken(null);
-        }
-        setLoading(false);
-      });
-      return () => unsubscribe();
-    } else {
-      setLoading(false);
+    let authUnsubscribe: (() => void) | null = null;
+
+    const setupListener = () => {
+      const activeAuth = getAuthInstance();
+      if (activeAuth) {
+        setIsLive(true);
+        if (authUnsubscribe) authUnsubscribe();
+        authUnsubscribe = onAuthStateChanged(activeAuth, async (fbUser: FirebaseUser | null) => {
+          if (fbUser) {
+            const userToken = await fbUser.getIdToken();
+            const profile: UserProfile = {
+              uid: fbUser.uid,
+              email: fbUser.email || '',
+              displayName: fbUser.displayName || 'Journaler',
+              photoURL: fbUser.photoURL || undefined
+            };
+            setUser(profile);
+            setToken(userToken);
+          } else if (!savedSandboxUser) {
+            setUser(null);
+            setToken(null);
+          }
+          setLoading(false);
+        });
+      }
+    };
+
+    // Initial setup if already initialized
+    if (getAuthInstance()) {
+      setupListener();
     }
+
+    // Subscribe to runtime initialization events
+    const unsubInit = onFirebaseInitialized(() => {
+      setupListener();
+    });
+
+    // Also trigger runtime config check from server
+    ensureFirebaseInitialized().then(configured => {
+      if (configured) {
+        setupListener();
+      } else {
+        setLoading(false);
+      }
+    });
+
+    return () => {
+      if (authUnsubscribe) authUnsubscribe();
+      unsubInit();
+    };
   }, []);
 
   const signInWithGoogle = async () => {
     setError(null);
-    if (!isFirebaseConfigured || !auth || !googleProvider) {
-      // Prompt sandbox sign in if Firebase client not set
+    await ensureFirebaseInitialized();
+    const activeAuth = getAuthInstance();
+    const activeProvider = getGoogleProvider();
+
+    if (!activeAuth || !activeProvider) {
+      setError('Firebase credentials are not configured in Cloud Run. Switched to zero-trust Sandbox mode.');
       signInWithSandbox('Google Explorer', 'user.explorer@gmail.com');
       return;
     }
 
     try {
-      const result = await signInWithPopup(auth, googleProvider);
+      const result = await signInWithPopup(activeAuth, activeProvider);
       const userToken = await result.user.getIdToken();
       const profile: UserProfile = {
         uid: result.user.uid,

@@ -65,6 +65,19 @@ jobs:
         run: |
           gcloud auth configure-docker ${{ env.REGION }}-docker.pkg.dev --quiet
 
+      - name: Inject Firebase Config for Build if present in Secrets
+        run: |
+          if [ -n "${{ secrets.FIREBASE_APPLET_CONFIG }}" ]; then
+            echo "Injecting firebase-applet-config.json from GitHub Secrets"
+            echo '${{ secrets.FIREBASE_APPLET_CONFIG }}' > firebase-applet-config.json
+          elif gcloud secrets describe FIREBASE_APPLET_CONFIG --project="${{ env.PROJECT_ID }}" >/dev/null 2>&1; then
+            echo "Restoring firebase-applet-config.json from Google Secret Manager"
+            gcloud secrets versions access latest --secret=FIREBASE_APPLET_CONFIG --project="${{ env.PROJECT_ID }}" > firebase-applet-config.json
+          elif [ ! -f firebase-applet-config.json ]; then
+            echo "Copying empty fallback template for compilation"
+            cp firebase-applet-config.example.json firebase-applet-config.json
+          fi
+
       - name: Build and Push Docker Image
         run: |
           IMAGE_TAG="${{ env.REGION }}-docker.pkg.dev/${{ env.PROJECT_ID }}/${{ env.GAR_REPOSITORY }}/${{ env.IMAGE_NAME }}:${{ github.sha }}"
@@ -78,13 +91,18 @@ jobs:
         run: |
           IMAGE_TAG="${{ env.REGION }}-docker.pkg.dev/${{ env.PROJECT_ID }}/${{ env.GAR_REPOSITORY }}/${{ env.IMAGE_NAME }}:${{ github.sha }}"
           
-          # Check if CRON_SECRET exists in Secret Manager
           SECRETS_PARAM="GEMINI_API_KEY=GEMINI_API_KEY:latest"
+          
+          # Check if CRON_SECRET exists in Secret Manager
           if gcloud secrets describe CRON_SECRET --project="${{ env.PROJECT_ID }}" >/dev/null 2>&1; then
             echo "CRON_SECRET found in Secret Manager, binding to Cloud Run service"
-            SECRETS_PARAM="GEMINI_API_KEY=GEMINI_API_KEY:latest,CRON_SECRET=CRON_SECRET:latest"
-          else
-            echo "CRON_SECRET not found in Secret Manager, proceeding with GEMINI_API_KEY only"
+            SECRETS_PARAM="${SECRETS_PARAM},CRON_SECRET=CRON_SECRET:latest"
+          fi
+
+          # Check if FIREBASE_APPLET_CONFIG exists in Secret Manager
+          if gcloud secrets describe FIREBASE_APPLET_CONFIG --project="${{ env.PROJECT_ID }}" >/dev/null 2>&1; then
+            echo "FIREBASE_APPLET_CONFIG found in Secret Manager, binding to Cloud Run service"
+            SECRETS_PARAM="${SECRETS_PARAM},FIREBASE_APPLET_CONFIG=FIREBASE_APPLET_CONFIG:latest"
           fi
 
           # Deploys container and attaches secrets from Google Secret Manager

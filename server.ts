@@ -1,5 +1,6 @@
 import express, { Request, Response, NextFunction } from 'express';
 import path from 'path';
+import fs from 'fs';
 import crypto from 'crypto';
 import dotenv from 'dotenv';
 import { GoogleGenAI, Type, Schema } from '@google/genai';
@@ -184,6 +185,43 @@ app.get('/api/security/audit', (req: Request, res: Response) => {
       elevationOfPrivilege: 'Protected via ABAC Static Validation Rules'
     }
   });
+});
+
+// Dynamic Client Firebase Configuration Endpoint (supports Secret Manager & env injection)
+app.get('/api/firebase-config', (req: Request, res: Response) => {
+  let jsonConfig: Record<string, string> = {};
+
+  // 1. Check if FIREBASE_APPLET_CONFIG is passed as JSON in environment / Secret Manager
+  if (process.env.FIREBASE_APPLET_CONFIG) {
+    try {
+      jsonConfig = JSON.parse(process.env.FIREBASE_APPLET_CONFIG);
+    } catch (e) {
+      console.warn('[Firebase Config] Could not parse FIREBASE_APPLET_CONFIG JSON:', e);
+    }
+  }
+
+  // 2. Fallback to local config file if present in filesystem
+  if (!jsonConfig.apiKey) {
+    const configPath = path.join(process.cwd(), 'firebase-applet-config.json');
+    if (fs.existsSync(configPath)) {
+      try {
+        jsonConfig = JSON.parse(fs.readFileSync(configPath, 'utf8'));
+      } catch {}
+    }
+  }
+
+  const resolved = {
+    apiKey: process.env.VITE_FIREBASE_API_KEY || process.env.FIREBASE_API_KEY || jsonConfig.apiKey || '',
+    authDomain: process.env.VITE_FIREBASE_AUTH_DOMAIN || process.env.FIREBASE_AUTH_DOMAIN || jsonConfig.authDomain || '',
+    projectId: process.env.VITE_FIREBASE_PROJECT_ID || process.env.FIREBASE_PROJECT_ID || jsonConfig.projectId || '',
+    storageBucket: process.env.VITE_FIREBASE_STORAGE_BUCKET || process.env.FIREBASE_STORAGE_BUCKET || jsonConfig.storageBucket || '',
+    messagingSenderId: process.env.VITE_FIREBASE_MESSAGING_SENDER_ID || process.env.FIREBASE_MESSAGING_SENDER_ID || jsonConfig.messagingSenderId || '',
+    appId: process.env.VITE_FIREBASE_APP_ID || process.env.FIREBASE_APP_ID || jsonConfig.appId || '',
+    firestoreDatabaseId: process.env.VITE_FIREBASE_DATABASE_ID || process.env.FIREBASE_DATABASE_ID || jsonConfig.firestoreDatabaseId || '',
+    oAuthClientId: process.env.VITE_FIREBASE_OAUTH_CLIENT_ID || process.env.FIREBASE_OAUTH_CLIENT_ID || jsonConfig.oAuthClientId || ''
+  };
+
+  res.json(resolved);
 });
 
 // Multi-turn Gemini Brainstorming / Journaling endpoint with Long-Term Knowledge Context

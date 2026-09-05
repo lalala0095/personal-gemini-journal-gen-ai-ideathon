@@ -25,9 +25,12 @@ steps:
         SECRETS_PARAM="GEMINI_API_KEY=GEMINI_API_KEY:latest"
         if gcloud secrets describe CRON_SECRET --project="$PROJECT_ID" >/dev/null 2>&1; then
           echo "CRON_SECRET found in Secret Manager, binding to Cloud Run"
-          SECRETS_PARAM="GEMINI_API_KEY=GEMINI_API_KEY:latest,CRON_SECRET=CRON_SECRET:latest"
-        else
-          echo "CRON_SECRET not found in Secret Manager, binding GEMINI_API_KEY only"
+          SECRETS_PARAM="$$SECRETS_PARAM,CRON_SECRET=CRON_SECRET:latest"
+        fi
+
+        if gcloud secrets describe FIREBASE_APPLET_CONFIG --project="$PROJECT_ID" >/dev/null 2>&1; then
+          echo "FIREBASE_APPLET_CONFIG found in Secret Manager, binding to Cloud Run"
+          SECRETS_PARAM="$$SECRETS_PARAM,FIREBASE_APPLET_CONFIG=FIREBASE_APPLET_CONFIG:latest"
         fi
 
         gcloud run deploy personal-gemini-journal \

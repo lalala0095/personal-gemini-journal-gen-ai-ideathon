@@ -7,10 +7,13 @@ import {
   query,
   orderBy
 } from 'firebase/firestore';
-import { db, isFirebaseConfigured } from './firebaseClient';
+import { db, isFirebaseConfigured, getDb } from './firebaseClient';
 import { JournalEntry, ActionItem, KnowledgeNode } from '../types';
 
 export class StorageService {
+  private static getActiveDb() {
+    return getDb() || db;
+  }
   /**
    * Generates isolated storage key for local mirroring
    */
@@ -30,10 +33,11 @@ export class StorageService {
     if (!userId) return [];
 
     let entries: JournalEntry[] = [];
+    const activeDb = this.getActiveDb();
 
-    if (isFirebaseConfigured && db) {
+    if (isFirebaseConfigured && activeDb) {
       try {
-        const journalsRef = collection(db, 'users', userId, 'journals');
+        const journalsRef = collection(activeDb, 'users', userId, 'journals');
         const q = query(journalsRef, orderBy('updatedAt', 'desc'));
         const snapshot = await getDocs(q);
         entries = snapshot.docs.map(d => ({ id: d.id, ...d.data() } as JournalEntry));
@@ -65,10 +69,11 @@ export class StorageService {
     if (!userId) return [];
 
     let nodes: KnowledgeNode[] = [];
+    const activeDb = this.getActiveDb();
 
-    if (isFirebaseConfigured && db) {
+    if (isFirebaseConfigured && activeDb) {
       try {
-        const hubRef = collection(db, 'users', userId, 'knowledge_hub');
+        const hubRef = collection(activeDb, 'users', userId, 'knowledge_hub');
         const snapshot = await getDocs(hubRef);
         nodes = snapshot.docs.map(d => ({ id: d.id, ...d.data() } as KnowledgeNode));
       } catch (err) {
@@ -101,10 +106,11 @@ export class StorageService {
     );
 
     if (legacyMockNodes.length > 0) {
+      const activeDb = this.getActiveDb();
       for (const mockNode of legacyMockNodes) {
-        if (isFirebaseConfigured && db) {
+        if (isFirebaseConfigured && activeDb) {
           try {
-            const docRef = doc(db, 'users', userId, 'knowledge_hub', mockNode.id);
+            const docRef = doc(activeDb, 'users', userId, 'knowledge_hub', mockNode.id);
             deleteDoc(docRef).catch(() => {});
           } catch (e) {
             // ignore
@@ -132,9 +138,10 @@ export class StorageService {
       lastMentioned: new Date().toISOString()
     };
 
-    if (isFirebaseConfigured && db) {
+    const activeDb = this.getActiveDb();
+    if (isFirebaseConfigured && activeDb) {
       try {
-        const docRef = doc(db, 'users', userId, 'knowledge_hub', node.id);
+        const docRef = doc(activeDb, 'users', userId, 'knowledge_hub', node.id);
         await setDoc(docRef, nodeToSave, { merge: true });
       } catch (err) {
         console.warn('[Firestore] Live knowledge save failed, caching locally:', err);
@@ -163,9 +170,10 @@ export class StorageService {
   static async deleteKnowledgeNode(userId: string, nodeId: string): Promise<void> {
     if (!userId || !nodeId) return;
 
-    if (isFirebaseConfigured && db) {
+    const activeDb = this.getActiveDb();
+    if (isFirebaseConfigured && activeDb) {
       try {
-        const docRef = doc(db, 'users', userId, 'knowledge_hub', nodeId);
+        const docRef = doc(activeDb, 'users', userId, 'knowledge_hub', nodeId);
         await deleteDoc(docRef);
       } catch (err) {
         console.warn('[Firestore] Delete knowledge node failed:', err);
@@ -195,9 +203,10 @@ export class StorageService {
     };
 
     // 1. Cloud Firestore write (if configured)
-    if (isFirebaseConfigured && db) {
+    const activeDb = this.getActiveDb();
+    if (isFirebaseConfigured && activeDb) {
       try {
-        const docRef = doc(db, 'users', userId, 'journals', journal.id);
+        const docRef = doc(activeDb, 'users', userId, 'journals', journal.id);
         await setDoc(docRef, docToSave, { merge: true });
       } catch (err) {
         console.warn('[Firestore] Live write failed, saving to local tenant cache:', err);
@@ -227,9 +236,10 @@ export class StorageService {
   static async deleteJournal(userId: string, journalId: string): Promise<void> {
     if (!userId || !journalId) return;
 
-    if (isFirebaseConfigured && db) {
+    const activeDb = this.getActiveDb();
+    if (isFirebaseConfigured && activeDb) {
       try {
-        const docRef = doc(db, 'users', userId, 'journals', journalId);
+        const docRef = doc(activeDb, 'users', userId, 'journals', journalId);
         await deleteDoc(docRef);
       } catch (err) {
         console.warn('[Firestore] Live delete failed:', err);
