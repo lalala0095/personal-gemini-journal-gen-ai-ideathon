@@ -11,7 +11,9 @@ import {
   Copy, 
   Check, 
   Trash2, 
-  BookOpen 
+  BookOpen,
+  ChevronLeft,
+  ChevronRight
 } from 'lucide-react';
 import { ChatMessage, KnowledgeNode, JournalEntry } from '../types';
 import { ApiService } from '../services/apiService';
@@ -49,6 +51,14 @@ export const GeminiBrainstormPanel: React.FC<GeminiBrainstormPanelProps> = ({
   const [error, setError] = useState<string | null>(null);
   const [copiedId, setCopiedId] = useState<string | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const sparksScrollRef = useRef<HTMLDivElement>(null);
+
+  const scrollSparks = (direction: 'left' | 'right') => {
+    if (sparksScrollRef.current) {
+      const offset = direction === 'left' ? -220 : 220;
+      sparksScrollRef.current.scrollBy({ left: offset, behavior: 'smooth' });
+    }
+  };
 
   // Synchronize incoming prop messages if different length
   useEffect(() => {
@@ -331,17 +341,55 @@ export const GeminiBrainstormPanel: React.FC<GeminiBrainstormPanelProps> = ({
 
       {/* Sparks Bar (if standalone) */}
       {isStandalone && localMessages.length > 0 && (
-        <div className="px-4 py-2 border-t border-slate-800/60 bg-slate-950/40 flex items-center gap-2 overflow-x-auto text-[11px]">
-          <span className="text-slate-400 font-medium shrink-0">Quick sparks:</span>
-          {quickSparks.map((spark, idx) => (
-            <button
-              key={idx}
-              onClick={() => handleSend(spark)}
-              className="whitespace-nowrap px-2.5 py-1 rounded-lg bg-slate-800/60 hover:bg-slate-800 text-slate-300 hover:text-white border border-slate-700/60 transition"
-            >
-              {spark}
-            </button>
-          ))}
+        <div className="relative border-t border-slate-800/80 bg-slate-950/70 backdrop-blur-md flex items-center px-2 py-2">
+          {/* Label */}
+          <div className="shrink-0 flex items-center gap-1.5 pl-2 pr-2.5 py-0.5 text-[11px] font-medium text-slate-400 border-r border-slate-800/60 select-none">
+            <Sparkles className="w-3 h-3 text-amber-400 shrink-0" />
+            <span className="hidden sm:inline">Sparks:</span>
+          </div>
+
+          {/* Scroll Navigation: Left */}
+          <button
+            type="button"
+            onClick={() => scrollSparks('left')}
+            className="shrink-0 p-1 ml-1 rounded-md text-slate-400 hover:text-slate-200 hover:bg-slate-800/60 transition hidden sm:flex items-center justify-center"
+            title="Scroll sparks left"
+          >
+            <ChevronLeft className="w-3.5 h-3.5" />
+          </button>
+
+          {/* Horizontally scrollable pill track without default scrollbar */}
+          <div
+            ref={sparksScrollRef}
+            onWheel={(e) => {
+              if (e.currentTarget && e.deltaY !== 0) {
+                e.currentTarget.scrollLeft += e.deltaY;
+              }
+            }}
+            className="flex-1 flex items-center gap-1.5 overflow-x-auto no-scrollbar scroll-smooth px-2 text-[11px]"
+          >
+            {quickSparks.map((spark, idx) => (
+              <button
+                key={idx}
+                type="button"
+                disabled={isLoading}
+                onClick={() => handleSend(spark)}
+                className="whitespace-nowrap px-3 py-1 rounded-full bg-slate-900/90 hover:bg-slate-800/90 text-slate-300 hover:text-indigo-200 border border-slate-800 hover:border-indigo-500/40 transition-all duration-150 active:scale-95 disabled:opacity-40 shrink-0 flex items-center gap-1.5 shadow-sm"
+              >
+                <span>{spark}</span>
+              </button>
+            ))}
+          </div>
+
+          {/* Scroll Navigation: Right */}
+          <button
+            type="button"
+            onClick={() => scrollSparks('right')}
+            className="shrink-0 p-1 mr-1 rounded-md text-slate-400 hover:text-slate-200 hover:bg-slate-800/60 transition hidden sm:flex items-center justify-center"
+            title="Scroll sparks right"
+          >
+            <ChevronRight className="w-3.5 h-3.5" />
+          </button>
         </div>
       )}
 
