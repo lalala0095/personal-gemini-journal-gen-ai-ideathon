@@ -28,7 +28,6 @@ RUN npm ci --omit=dev && npm cache clean --force
 
 # Copy built distribution from builder
 COPY --from=builder /app/dist ./dist
-COPY --from=builder /app/public ./public
 
 # Use non-root node user for container security
 USER node
