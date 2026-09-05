@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { 
   Sparkles, 
   Send, 
@@ -13,10 +13,16 @@ import {
   Trash2, 
   BookOpen,
   ChevronLeft,
-  ChevronRight
+  ChevronRight,
+  Cpu,
+  Loader2,
+  CheckCircle,
+  CheckCheck,
+  Clock
 } from 'lucide-react';
 import { ChatMessage, KnowledgeNode, JournalEntry } from '../types';
 import { ApiService } from '../services/apiService';
+import { StorageService } from '../services/storageService';
 import { useAuth } from '../context/AuthContext';
 
 interface GeminiBrainstormPanelProps {
@@ -25,6 +31,7 @@ interface GeminiBrainstormPanelProps {
   onAppendToJournal?: (text: string) => void;
   journalContent?: string;
   knowledgeNodes?: KnowledgeNode[];
+  onKnowledgeNodesUpdated?: (nodes: KnowledgeNode[]) => void;
   onOpenMemoryPalace?: () => void;
   isStandalone?: boolean;
   journals?: JournalEntry[];
@@ -38,6 +45,7 @@ export const GeminiBrainstormPanel: React.FC<GeminiBrainstormPanelProps> = ({
   onAppendToJournal,
   journalContent = '',
   knowledgeNodes = [],
+  onKnowledgeNodesUpdated,
   onOpenMemoryPalace,
   isStandalone = false,
   journals = [],
@@ -52,6 +60,12 @@ export const GeminiBrainstormPanel: React.FC<GeminiBrainstormPanelProps> = ({
   const [copiedId, setCopiedId] = useState<string | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const sparksScrollRef = useRef<HTMLDivElement>(null);
+
+  // Background Knowledge Distiller Worker State
+  const [isDistilling, setIsDistilling] = useState(false);
+  const [distillStatus, setDistillStatus] = useState<string | null>(null);
+  const lastDistilledTurnCountRef = useRef<number>(0);
+  const isWorkerBusyRef = useRef<boolean>(false);
 
   const scrollSparks = (direction: 'left' | 'right') => {
     if (sparksScrollRef.current) {
@@ -87,7 +101,8 @@ export const GeminiBrainstormPanel: React.FC<GeminiBrainstormPanelProps> = ({
       id: 'msg-' + Math.random().toString(36).substring(2, 9),
       role: 'user',
       text: textToSend,
-      timestamp: new Date().toISOString()
+      timestamp: new Date().toISOString(),
+      analyzedForKnowledge: false
     };
 
     // Immediately push user turn into view
@@ -105,16 +120,152 @@ export const GeminiBrainstormPanel: React.FC<GeminiBrainstormPanelProps> = ({
         knowledgeNodes
       );
 
-      // Append Gemini's turn immediately
-      const finalHistory = [...newHistory, response];
+      // Append Gemini's turn immediately, marked as pending knowledge analysis
+      const modelMsg: ChatMessage = {
+        ...response,
+        analyzedForKnowledge: false
+      };
+      const finalHistory = [...newHistory, modelMsg];
       setLocalMessages(finalHistory);
       onUpdateMessages(finalHistory);
+
+      // Persist conversation turns to current journal in Firestore
+      if (activeJournalId && user?.uid) {
+        const activeJournalObj = journals.find(j => j.id === activeJournalId);
+        if (activeJournalObj) {
+          StorageService.saveJournal(user.uid, {
+            ...activeJournalObj,
+            messages: finalHistory,
+            updatedAt: new Date().toISOString()
+          }).catch(err => console.warn('[Firestore] Background turn sync error:', err));
+        }
+      }
+
+      // Evaluate automated background knowledge extraction:
+      // When 4-5 or more unanalyzed conversation turns accumulate,
+      // spawn the background worker using Gemini 3.5 Flash-Lite to compress & store knowledge
+      const unanalyzedTurns = finalHistory.filter(m => !m.analyzedForKnowledge);
+      if (
+        unanalyzedTurns.length >= 4 &&
+        !isWorkerBusyRef.current
+      ) {
+        // Run asynchronously in background without blocking conversation UI
+        runBackgroundDistillation(finalHistory);
+      }
     } catch (err: any) {
       setError(err.message || 'Failed to brainstorm with Gemini. Please try again.');
     } finally {
       setIsLoading(false);
     }
   };
+
+  /**
+   * Autonomous Background Worker:
+   * Ingests 5-10 unanalyzed turns of agent-user conversation, calls Gemini 3.5 Flash-Lite
+   * to analyze & compress durable takeaways, stores them in the Knowledge Hub,
+   * and marks the ingested turns as analyzed to guarantee strict idempotency (no duplicate analytics).
+   */
+  const runBackgroundDistillation = useCallback(async (historyToAnalyze?: ChatMessage[]) => {
+    if (!user || !token || isWorkerBusyRef.current) return;
+    const history = historyToAnalyze || localMessages;
+    
+    // Idempotency: filter ONLY unanalyzed turns
+    const unanalyzedTurns = history.filter(m => !m.analyzedForKnowledge);
+    
+    if (unanalyzedTurns.length === 0) {
+      setDistillStatus('All conversation turns are already analyzed (Idempotent: No duplicates).');
+      setTimeout(() => setDistillStatus(null), 3500);
+      return;
+    }
+
+    if (unanalyzedTurns.length < 2) {
+      setDistillStatus('Need at least 2 unanalyzed conversation turns to synthesize knowledge.');
+      setTimeout(() => setDistillStatus(null), 3000);
+      return;
+    }
+
+    isWorkerBusyRef.current = true;
+    setIsDistilling(true);
+    const turnsToProcess = unanalyzedTurns.slice(-10);
+    setDistillStatus(`Distilling ${turnsToProcess.length} unanalyzed turn${turnsToProcess.length > 1 ? 's' : ''} with Gemini 3.5 Flash-Lite...`);
+
+    try {
+      const activeTitle = journals.find(j => j.id === activeJournalId)?.title;
+      const result = await ApiService.distillConversation(
+        token,
+        turnsToProcess,
+        knowledgeNodes,
+        activeTitle
+      );
+
+      // Turn Idempotency: Mark the processed turns as analyzed
+      const newlyAnalyzedSet = new Set(
+        result.analyzedMessageIds && result.analyzedMessageIds.length > 0 
+          ? result.analyzedMessageIds 
+          : turnsToProcess.map(m => m.id)
+      );
+
+      const nowIso = new Date().toISOString();
+      const updatedHistory = history.map(m => 
+        newlyAnalyzedSet.has(m.id)
+          ? { ...m, analyzedForKnowledge: true, analyzedAt: nowIso }
+          : m
+      );
+
+      setLocalMessages(updatedHistory);
+      onUpdateMessages(updatedHistory);
+
+      // Persist the updated turn flags to Firestore so idempotency holds across sessions/devices
+      if (activeJournalId) {
+        const activeJournalObj = journals.find(j => j.id === activeJournalId);
+        if (activeJournalObj) {
+          const updatedJournal: JournalEntry = {
+            ...activeJournalObj,
+            messages: updatedHistory,
+            updatedAt: nowIso
+          };
+          await StorageService.saveJournal(user.uid, updatedJournal);
+        }
+      }
+
+      if (result.newKnowledgeNodes && result.newKnowledgeNodes.length > 0) {
+        const savedNewNodes: KnowledgeNode[] = [];
+        for (const item of result.newKnowledgeNodes) {
+          const newNode: KnowledgeNode = {
+            id: `kn-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`,
+            userId: user.uid,
+            category: item.category,
+            title: item.title,
+            summary: item.summary,
+            keyTakeaways: item.keyTakeaways || [],
+            confidence: item.confidence || 0.95,
+            lastMentioned: nowIso,
+            sourceEntryId: activeJournalId,
+            createdAt: nowIso
+          };
+
+          await StorageService.saveKnowledgeNode(user.uid, newNode);
+          savedNewNodes.push(newNode);
+        }
+
+        const combinedNodes = [...savedNewNodes, ...knowledgeNodes];
+        if (onKnowledgeNodesUpdated) {
+          onKnowledgeNodesUpdated(combinedNodes);
+        }
+
+        setDistillStatus(`Idempotency enforced: Marked ${newlyAnalyzedSet.size} turn${newlyAnalyzedSet.size > 1 ? 's' : ''} as analyzed. Stored ${savedNewNodes.length} node${savedNewNodes.length > 1 ? 's' : ''}: "${savedNewNodes[0].title}"`);
+      } else {
+        setDistillStatus(`Idempotency enforced: Marked ${newlyAnalyzedSet.size} turn${newlyAnalyzedSet.size > 1 ? 's' : ''} as analyzed (Knowledge Hub already up to date).`);
+      }
+    } catch (workerErr: any) {
+      console.warn('[Background Worker Notice]:', workerErr?.message || workerErr);
+      setDistillStatus('Background worker scheduled for next cycle.');
+    } finally {
+      setIsDistilling(false);
+      isWorkerBusyRef.current = false;
+      setTimeout(() => setDistillStatus(null), 5000);
+    }
+  }, [user, token, localMessages, knowledgeNodes, journals, activeJournalId, onKnowledgeNodesUpdated]);
 
   const handleCopy = (id: string, text: string) => {
     navigator.clipboard.writeText(text);
@@ -196,6 +347,52 @@ export const GeminiBrainstormPanel: React.FC<GeminiBrainstormPanelProps> = ({
             </div>
           )}
 
+          {/* Autonomous Background Worker Trigger & Status */}
+          {(() => {
+            const unanalyzedCount = localMessages.filter(m => !m.analyzedForKnowledge).length;
+            const analyzedCount = localMessages.filter(m => m.analyzedForKnowledge).length;
+            const isAllAnalyzed = unanalyzedCount === 0 && localMessages.length > 0;
+
+            return (
+              <button
+                id="worker-distill-btn"
+                onClick={() => runBackgroundDistillation()}
+                disabled={isDistilling || (unanalyzedCount === 0 && localMessages.length === 0)}
+                className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl text-xs font-semibold border transition ${
+                  isDistilling
+                    ? 'bg-amber-500/10 text-amber-300 border-amber-500/30 animate-pulse'
+                    : isAllAnalyzed
+                    ? 'bg-emerald-500/10 text-emerald-300 border-emerald-500/30 hover:bg-emerald-500/20'
+                    : 'bg-indigo-600/20 hover:bg-indigo-600/30 text-indigo-300 border-indigo-500/30 hover:border-indigo-500/50'
+                } disabled:opacity-40 disabled:cursor-not-allowed`}
+                title={
+                  isAllAnalyzed
+                    ? `Idempotency active: All ${analyzedCount} conversation turns are marked as analyzed in Firestore. Click to verify.`
+                    : `Ingests ${unanalyzedCount} unanalyzed turn${unanalyzedCount === 1 ? '' : 's'} and marks them analyzed to prevent duplicate analytics.`
+                }
+              >
+                {isDistilling ? (
+                  <>
+                    <Loader2 className="w-3.5 h-3.5 animate-spin text-amber-400" />
+                    <span className="hidden sm:inline">Worker Synthesizing...</span>
+                  </>
+                ) : isAllAnalyzed ? (
+                  <>
+                    <CheckCircle className="w-3.5 h-3.5 text-emerald-400" />
+                    <span className="hidden sm:inline">All Analyzed ({analyzedCount})</span>
+                  </>
+                ) : (
+                  <>
+                    <Cpu className="w-3.5 h-3.5 text-indigo-400" />
+                    <span className="hidden sm:inline">
+                      {unanalyzedCount > 0 ? `Distill (${unanalyzedCount} new)` : 'Auto-Distill Turns'}
+                    </span>
+                  </>
+                )}
+              </button>
+            );
+          })()}
+
           <button
             onClick={handleClearHistory}
             className="p-1.5 rounded-lg text-slate-400 hover:text-rose-300 hover:bg-rose-950/30 transition"
@@ -209,6 +406,22 @@ export const GeminiBrainstormPanel: React.FC<GeminiBrainstormPanelProps> = ({
           </span>
         </div>
       </div>
+
+      {/* Background Worker Notification Banner */}
+      {distillStatus && (
+        <div className="px-4 py-2 bg-indigo-950/80 border-b border-indigo-800/60 flex items-center justify-between text-xs text-indigo-200 animate-fadeIn">
+          <div className="flex items-center gap-2">
+            <Cpu className="w-4 h-4 text-indigo-400 shrink-0" />
+            <span>{distillStatus}</span>
+          </div>
+          <button
+            onClick={() => setDistillStatus(null)}
+            className="text-slate-400 hover:text-white text-xs ml-2"
+          >
+            &times;
+          </button>
+        </div>
+      )}
 
       {/* Messages Scroll Area */}
       <div className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-4 text-xs sm:text-sm">
@@ -294,6 +507,27 @@ export const GeminiBrainstormPanel: React.FC<GeminiBrainstormPanelProps> = ({
                       <ArrowDownToLine className="w-3 h-3" />
                       <span>Insert into Journal</span>
                     </button>
+                  )}
+
+                  {/* Turn Idempotency Badge */}
+                  {msg.analyzedForKnowledge ? (
+                    <span
+                      className="inline-flex items-center gap-1 text-[10px] text-emerald-400 bg-emerald-950/40 px-1.5 py-0.5 rounded border border-emerald-800/40 font-medium"
+                      title={`Idempotent: Analyzed by background worker on ${
+                        msg.analyzedAt ? new Date(msg.analyzedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : 'record'
+                      }`}
+                    >
+                      <CheckCheck className="w-3 h-3 text-emerald-400" />
+                      <span>Analyzed</span>
+                    </span>
+                  ) : (
+                    <span
+                      className="inline-flex items-center gap-1 text-[10px] text-amber-300/80 bg-amber-950/30 px-1.5 py-0.5 rounded border border-amber-800/30 font-medium"
+                      title="Pending background worker knowledge ingestion"
+                    >
+                      <Clock className="w-2.5 h-2.5 text-amber-400/80" />
+                      <span>Pending analysis</span>
+                    </span>
                   )}
                 </div>
               </div>

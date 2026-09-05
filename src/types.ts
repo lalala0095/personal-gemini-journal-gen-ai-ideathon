@@ -11,6 +11,8 @@ export interface ChatMessage {
   role: 'user' | 'model' | 'system';
   text: string;
   timestamp: string;
+  analyzedForKnowledge?: boolean;
+  analyzedAt?: string;
 }
 
 export interface ActionItem {
@@ -105,6 +107,20 @@ export interface MemoryQueryResult {
     category: string;
     snippet: string;
   }[];
+  timestamp: string;
+}
+
+export interface ConversationDistillationResult {
+  newKnowledgeNodes: {
+    category: KnowledgeCategory;
+    title: string;
+    summary: string;
+    keyTakeaways: string[];
+    confidence: number;
+  }[];
+  distillationSummary: string;
+  turnsAnalyzed: number;
+  analyzedMessageIds: string[];
   timestamp: string;
 }
 

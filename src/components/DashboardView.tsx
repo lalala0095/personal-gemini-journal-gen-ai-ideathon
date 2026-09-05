@@ -313,6 +313,11 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
               </button>
             </div>
 
+            <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-indigo-900/30 border border-indigo-700/40 text-[11px] text-indigo-200">
+              <Sparkles className="w-3.5 h-3.5 text-indigo-400 shrink-0" />
+              <span>Auto-synthesizes every 5-10 conversational turns with Gemini 3.5 Flash-Lite</span>
+            </div>
+
             <p className="text-xs text-slate-400 leading-relaxed">
               Your agent remembers persistent goals and mental models across all sessions:
             </p>

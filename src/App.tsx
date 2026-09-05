@@ -481,7 +481,13 @@ Take a quiet moment to pause, reflect, and capture your thoughts.
                   }
                   journalContent={activeJournal.content}
                   knowledgeNodes={knowledgeNodes}
+                  onKnowledgeNodesUpdated={(updatedNodes) => {
+                    setKnowledgeNodes(updatedNodes);
+                    showToast('Knowledge Hub updated by Background Worker');
+                  }}
                   onOpenMemoryPalace={() => setIsMemoryPalaceOpen(true)}
+                  journals={journals}
+                  activeJournalId={activeJournal.id}
                 />
               </div>
             )}
@@ -503,6 +509,10 @@ Take a quiet moment to pause, reflect, and capture your thoughts.
               }}
               journalContent={activeJournal?.content}
               knowledgeNodes={knowledgeNodes}
+              onKnowledgeNodesUpdated={(updatedNodes) => {
+                setKnowledgeNodes(updatedNodes);
+                showToast('Knowledge Hub updated by Background Worker');
+              }}
               onOpenMemoryPalace={() => setIsMemoryPalaceOpen(true)}
               journals={journals}
               activeJournalId={activeJournal?.id}

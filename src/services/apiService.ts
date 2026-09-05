@@ -1,4 +1,4 @@
-import { ChatMessage, JournalSummary, SecurityAuditReport, KnowledgeNode, MemoryQueryResult } from '../types';
+import { ChatMessage, JournalSummary, SecurityAuditReport, KnowledgeNode, MemoryQueryResult, ConversationDistillationResult } from '../types';
 
 export class ApiService {
   private static getHeaders(token: string | null): HeadersInit {
@@ -122,6 +122,30 @@ export class ApiService {
         "If you had complete confidence, what idea would you test tomorrow?"
       ];
     }
+  }
+
+  /**
+   * Background Worker: Ingest 5-10 conversation turns, analyze with Gemini 3.5 Flash-Lite,
+   * and distill them into compressed Knowledge Hub nodes automatically.
+   */
+  static async distillConversation(
+    token: string | null,
+    messages: ChatMessage[],
+    existingNodes: KnowledgeNode[],
+    journalTitle?: string
+  ): Promise<ConversationDistillationResult> {
+    const res = await fetch('/api/gemini/distill-conversation', {
+      method: 'POST',
+      headers: this.getHeaders(token),
+      body: JSON.stringify({ messages, existingNodes, journalTitle })
+    });
+
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err.message || `Distillation failed with status ${res.status}`);
+    }
+
+    return await res.json();
   }
 
   /**

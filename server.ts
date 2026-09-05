@@ -459,6 +459,121 @@ Instructions:
   }
 });
 
+// Background Worker Endpoint: Autonomous Conversation Knowledge Distiller & Synthesizer
+// Ingests 5-10 turns of user <-> AI conversations, analyzes them with Gemini 3.5 Flash-Lite,
+// and forms high-yield knowledge nodes to update the user's Knowledge Hub automatically.
+app.post('/api/gemini/distill-conversation', requireAuth, rateLimitGuard, async (req: AuthenticatedRequest, res: Response) => {
+  try {
+    const { messages, existingNodes, journalTitle } = req.body;
+    if (!messages || !Array.isArray(messages) || messages.length === 0) {
+      return res.status(400).json({ error: 'Bad Request', message: 'Messages array is required for distillation.' });
+    }
+
+    // Idempotency: filter only unanalyzed turns if analyzedForKnowledge flags are present
+    const unanalyzedTurns = messages.filter((m: any) => !m.analyzedForKnowledge);
+    
+    // If all incoming turns are already analyzed, return immediately (Idempotent response)
+    if (unanalyzedTurns.length === 0) {
+      return res.json({
+        newKnowledgeNodes: [],
+        distillationSummary: 'All conversation turns are already analyzed (Idempotent).',
+        turnsAnalyzed: 0,
+        analyzedMessageIds: [],
+        timestamp: new Date().toISOString()
+      });
+    }
+
+    // Take the 5-10 unanalyzed turns for distillation
+    const relevantTurns = unanalyzedTurns.slice(-10);
+    const analyzedMessageIds = relevantTurns.map((m: any) => m.id);
+    const conversationDialogue = relevantTurns
+      .map((m: { role: string; text: string }) => `${m.role === 'model' ? 'AI' : 'User'}: ${m.text}`)
+      .join('\n\n');
+
+    const knownNodesSnippet = Array.isArray(existingNodes) && existingNodes.length > 0
+      ? existingNodes.slice(0, 15).map((n: any) => `[ID: ${n.id}] [${n.category}] "${n.title}": ${n.summary}`).join('\n')
+      : 'None recorded yet.';
+
+    const ai = getGeminiClient();
+
+    const distillationSchema: Schema = {
+      type: Type.OBJECT,
+      properties: {
+        newKnowledgeNodes: {
+          type: Type.ARRAY,
+          items: {
+            type: Type.OBJECT,
+            properties: {
+              category: {
+                type: Type.STRING,
+                enum: ['Career', 'Goals', 'Learning', 'Projects', 'Personal', 'Mindset', 'Concerns']
+              },
+              title: { type: Type.STRING, description: 'Concise concept or goal title (e.g. "Distributed Agent Pipeline", "Morning Deep Focus")' },
+              summary: { type: Type.STRING, description: 'A crystal-clear, durable insight, personal value, or working direction discovered from this dialogue' },
+              keyTakeaways: { 
+                type: Type.ARRAY, 
+                items: { type: Type.STRING },
+                description: '2 to 3 sharp, memorable takeaways synthesized from the conversation'
+              },
+              confidence: { type: Type.NUMBER, description: 'Confidence score from 0.8 to 1.0 based on how clearly the user expressed this' }
+            },
+            required: ['category', 'title', 'summary', 'keyTakeaways', 'confidence']
+          },
+          description: '1 to 3 distinct, high-value knowledge nodes extracted from this conversation session'
+        },
+        distillationSummary: {
+          type: Type.STRING,
+          description: 'A 1-sentence recap of what durable knowledge was identified and formed'
+        }
+      },
+      required: ['newKnowledgeNodes', 'distillationSummary']
+    };
+
+    const prompt = `You are an Autonomous Knowledge Synthesizer and Memory Palace Worker powered by Gemini 3.5 Flash-Lite.
+Your job is to read recent multi-turn User <-> AI conversations, extract core enduring knowledge about the user, compress it, and form structured Knowledge Hub nodes.
+
+Context / Active Journal: "${journalTitle || 'Conversational Brainstorm'}"
+
+--- RECENT CONVERSATION TURNS (${relevantTurns.length} turns) ---
+${conversationDialogue}
+---------------------------------------------------------------
+
+--- EXISTING KNOWLEDGE NODES ALREADY IN KNOWLEDGE HUB ---
+${knownNodesSnippet}
+-------------------------------------------------------
+
+Rules for Knowledge Formation:
+1. Focus on enduring facts, declared priorities, creative solutions, personal values, or project decisions made by the user.
+2. Avoid duplicating existing nodes unless you are updating or evolving them with new clarity.
+3. Keep summaries dense, concise, and deeply relevant so future Gemini sessions can easily ground themselves.
+4. If the dialogue is merely casual greeting with no real knowledge, return an empty array for newKnowledgeNodes.
+5. Provide a crisp 1-sentence distillation summary of what was formed.`;
+
+    const response = await ai.models.generateContent({
+      model: 'gemini-3.5-flash-lite',
+      contents: [{ role: 'user', parts: [{ text: prompt }] }],
+      config: {
+        responseMimeType: 'application/json',
+        responseSchema: distillationSchema,
+        temperature: 0.2
+      }
+    });
+
+    const parsed = JSON.parse(response.text || '{"newKnowledgeNodes":[],"distillationSummary":"No knowledge formed"}');
+
+    res.json({
+      newKnowledgeNodes: parsed.newKnowledgeNodes || [],
+      distillationSummary: parsed.distillationSummary || 'Distilled conversational knowledge.',
+      turnsAnalyzed: relevantTurns.length,
+      analyzedMessageIds,
+      timestamp: new Date().toISOString()
+    });
+  } catch (error: any) {
+    console.error('[Distill Conversation Error]:', error);
+    res.status(500).json({ error: 'Distillation Failed', message: error.message });
+  }
+});
+
 // Spark Prompt Generator for Creative Journaling
 app.post('/api/gemini/prompts', requireAuth, async (req: AuthenticatedRequest, res: Response) => {
   try {
