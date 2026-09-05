@@ -2,7 +2,6 @@ import React, { useState, useEffect } from 'react';
 import { 
   Sparkles, 
   Save, 
-  MessageSquare, 
   Download, 
   Wand2, 
   Lightbulb, 
@@ -21,8 +20,6 @@ interface JournalEditorProps {
   journal: JournalEntry;
   onUpdateJournal: (updated: Partial<JournalEntry>) => void;
   onSave: () => Promise<void>;
-  onToggleBrainstorm: () => void;
-  isBrainstormOpen: boolean;
   onSynthesize: () => void;
   isSynthesizing: boolean;
   isSaving: boolean;
@@ -32,8 +29,6 @@ export const JournalEditor: React.FC<JournalEditorProps> = ({
   journal,
   onUpdateJournal,
   onSave,
-  onToggleBrainstorm,
-  isBrainstormOpen,
   onSynthesize,
   isSynthesizing,
   isSaving
@@ -109,20 +104,6 @@ export const JournalEditor: React.FC<JournalEditorProps> = ({
           >
             <Lightbulb className="w-3.5 h-3.5 text-amber-400" />
             <span className="hidden sm:inline">Spark Prompts</span>
-          </button>
-
-          {/* Toggle Brainstorm Drawer */}
-          <button
-            id="toggle-brainstorm-btn"
-            onClick={onToggleBrainstorm}
-            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium border transition ${
-              isBrainstormOpen
-                ? 'bg-indigo-600 border-indigo-500 text-white'
-                : 'bg-slate-800 hover:bg-slate-700 border-slate-700 text-slate-300'
-            }`}
-          >
-            <MessageSquare className="w-3.5 h-3.5" />
-            <span>Brainstorm ({journal.messages?.length || 0})</span>
           </button>
 
           {/* Synthesize with Gemini */}

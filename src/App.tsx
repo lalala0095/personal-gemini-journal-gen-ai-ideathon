@@ -21,7 +21,6 @@ function JournalMain() {
   const [activeJournal, setActiveJournal] = useState<JournalEntry | null>(null);
   const [knowledgeNodes, setKnowledgeNodes] = useState<KnowledgeNode[]>([]);
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
-  const [isBrainstormOpen, setIsBrainstormOpen] = useState(true);
   const [isSecurityModalOpen, setIsSecurityModalOpen] = useState(false);
   const [isMemoryPalaceOpen, setIsMemoryPalaceOpen] = useState(false);
   const [isSynthesizing, setIsSynthesizing] = useState(false);
@@ -433,8 +432,6 @@ Take a quiet moment to pause, reflect, and capture your thoughts.
                         journal={activeJournal}
                         onUpdateJournal={handleUpdateJournal}
                         onSave={handleManualSave}
-                        onToggleBrainstorm={() => setIsBrainstormOpen(!isBrainstormOpen)}
-                        isBrainstormOpen={isBrainstormOpen}
                         onSynthesize={handleSynthesize}
                         isSynthesizing={isSynthesizing}
                         isSaving={isSaving}
@@ -470,28 +467,6 @@ Take a quiet moment to pause, reflect, and capture your thoughts.
                 )}
               </div>
             </div>
-
-            {/* Optional Collapsible Right Panel in Journal Studio */}
-            {isBrainstormOpen && activeJournal && (
-              <div className="w-80 lg:w-96 border-l border-slate-800 shrink-0 hidden md:block">
-                <GeminiBrainstormPanel
-                  messages={activeJournal.messages || []}
-                  onUpdateMessages={(msgs: ChatMessage[]) => handleUpdateJournal({ messages: msgs })}
-                  onAppendToJournal={(text: string) =>
-                    handleUpdateJournal({ content: (activeJournal.content || '') + text })
-                  }
-                  journalContent={activeJournal.content}
-                  knowledgeNodes={knowledgeNodes}
-                  onKnowledgeNodesUpdated={(updatedNodes) => {
-                    setKnowledgeNodes(updatedNodes);
-                    showToast('Knowledge Hub updated by Background Worker');
-                  }}
-                  onOpenMemoryPalace={() => setIsMemoryPalaceOpen(true)}
-                  journals={journals}
-                  activeJournalId={activeJournal.id}
-                />
-              </div>
-            )}
           </div>
         )}
 
