@@ -315,6 +315,21 @@ export const GeminiBrainstormPanel: React.FC<GeminiBrainstormPanelProps> = ({
     }
   }, [user, token, localMessages, knowledgeNodes, journals, activeJournalId, onKnowledgeNodesUpdated]);
 
+  // Hourly recurring background knowledge distillation task (every 60 minutes)
+  useEffect(() => {
+    if (!user || !token) return;
+    const HOURLY_MS = 60 * 60 * 1000;
+    const hourlyTimer = setInterval(() => {
+      const pendingTurns = localMessages.filter(m => !m.analyzedForKnowledge);
+      if (pendingTurns.length >= 2 && !isWorkerBusyRef.current) {
+        console.log('[Hourly Client Worker] Running hourly scheduled context distillation...');
+        runBackgroundDistillation();
+      }
+    }, HOURLY_MS);
+
+    return () => clearInterval(hourlyTimer);
+  }, [user, token, localMessages, runBackgroundDistillation]);
+
   const handleCopy = (id: string, text: string) => {
     navigator.clipboard.writeText(text);
     setCopiedId(id);

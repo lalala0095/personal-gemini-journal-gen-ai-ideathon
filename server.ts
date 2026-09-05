@@ -30,6 +30,24 @@ setInterval(() => {
   }
 }, 5 * 60 * 1000);
 
+// In-Memory Turn Buffers for Hourly Background Knowledge Distillation
+interface QueuedTurn {
+  id: string;
+  role: 'user' | 'model';
+  text: string;
+  timestamp: string;
+}
+
+interface UserConversationSession {
+  userId: string;
+  turns: QueuedTurn[];
+  lastActive: number;
+}
+
+const activeUserTurnBuffers = new Map<string, UserConversationSession>();
+let lastCronRunTime: string | null = null;
+let totalCronRuns = 0;
+
 function rateLimitGuard(req: AuthenticatedRequest, res: Response, next: NextFunction) {
   const key = req.userId || req.ip || 'anonymous';
   const now = Date.now();
@@ -245,6 +263,30 @@ Context: ${userContext || 'Personal journal and reflective ideation session'}${m
     });
 
     const replyText = response.text || 'I am here with you. What would you like to explore next?';
+
+    // Buffer turns in memory for scheduled background distillation
+    if (req.userId) {
+      const lastUserText = [...messages].reverse().find((m: any) => m.role === 'user')?.text || '';
+      const existingSession = activeUserTurnBuffers.get(req.userId) || {
+        userId: req.userId,
+        turns: [],
+        lastActive: Date.now()
+      };
+      existingSession.turns.push({
+        id: 'turn-u-' + Date.now(),
+        role: 'user',
+        text: lastUserText,
+        timestamp: new Date().toISOString()
+      });
+      existingSession.turns.push({
+        id: 'turn-m-' + Date.now(),
+        role: 'model',
+        text: replyText,
+        timestamp: new Date().toISOString()
+      });
+      existingSession.lastActive = Date.now();
+      activeUserTurnBuffers.set(req.userId, existingSession);
+    }
 
     res.json({
       role: 'model',
@@ -505,98 +547,76 @@ Instructions:
   }
 });
 
-// Background Worker Endpoint: Autonomous Conversation Knowledge Distiller & Synthesizer
-// Ingests 5-10 turns of user <-> AI conversations, analyzes them with Gemini 3.5 Flash-Lite,
-// and forms high-yield knowledge nodes to update the user's Knowledge Hub automatically.
-app.post('/api/gemini/distill-conversation', requireAuth, rateLimitGuard, async (req: AuthenticatedRequest, res: Response) => {
-  try {
-    const { messages, existingNodes, journalTitle } = req.body;
-    if (!messages || !Array.isArray(messages) || messages.length === 0) {
-      return res.status(400).json({ error: 'Bad Request', message: 'Messages array is required for distillation.' });
-    }
+// Reusable Autonomous Knowledge Distiller Worker
+async function executeDistillationWorker(
+  relevantTurns: { role: string; text: string }[],
+  existingNodes: any[] = [],
+  journalTitle?: string
+) {
+  const conversationDialogue = relevantTurns
+    .map((m) => `${m.role === 'model' ? 'AI' : 'User'}: ${m.text}`)
+    .join('\n\n');
 
-    // Idempotency: filter only unanalyzed turns if analyzedForKnowledge flags are present
-    const unanalyzedTurns = messages.filter((m: any) => !m.analyzedForKnowledge);
-    
-    // If all incoming turns are already analyzed, return immediately (Idempotent response)
-    if (unanalyzedTurns.length === 0) {
-      return res.json({
-        newKnowledgeNodes: [],
-        distillationSummary: 'All conversation turns are already analyzed (Idempotent).',
-        turnsAnalyzed: 0,
-        analyzedMessageIds: [],
-        timestamp: new Date().toISOString()
-      });
-    }
+  const knownNodesSnippet = Array.isArray(existingNodes) && existingNodes.length > 0
+    ? existingNodes.slice(0, 15).map((n: any) => `[ID: ${n.id}] [${n.category}] "${n.title}": ${n.summary}`).join('\n')
+    : 'None recorded yet.';
 
-    // Take the 5-10 unanalyzed turns for distillation
-    const relevantTurns = unanalyzedTurns.slice(-10);
-    const analyzedMessageIds = relevantTurns.map((m: any) => m.id);
-    const conversationDialogue = relevantTurns
-      .map((m: { role: string; text: string }) => `${m.role === 'model' ? 'AI' : 'User'}: ${m.text}`)
-      .join('\n\n');
+  const ai = getGeminiClient();
 
-    const knownNodesSnippet = Array.isArray(existingNodes) && existingNodes.length > 0
-      ? existingNodes.slice(0, 15).map((n: any) => `[ID: ${n.id}] [${n.category}] "${n.title}": ${n.summary}`).join('\n')
-      : 'None recorded yet.';
+  const nowDistill = new Date();
+  const formattedDistillDate = nowDistill.toLocaleDateString('en-US', {
+    weekday: 'long',
+    year: 'numeric',
+    month: 'long',
+    day: 'numeric'
+  });
+  const currentISODate = nowDistill.toISOString().split('T')[0];
 
-    const ai = getGeminiClient();
-
-    // Temporal context anchor to ground relative dates (e.g. "today is my birthday", "tomorrow", "next week")
-    const nowDistill = new Date();
-    const formattedDistillDate = nowDistill.toLocaleDateString('en-US', {
-      weekday: 'long',
-      year: 'numeric',
-      month: 'long',
-      day: 'numeric'
-    });
-    const currentISODate = nowDistill.toISOString().split('T')[0];
-
-    const distillationSchema: Schema = {
-      type: Type.OBJECT,
-      properties: {
-        newKnowledgeNodes: {
-          type: Type.ARRAY,
-          items: {
-            type: Type.OBJECT,
-            properties: {
-              category: {
-                type: Type.STRING,
-                enum: ['Career', 'Goals', 'Learning', 'Projects', 'Personal', 'Mindset', 'Concerns']
-              },
-              title: { 
-                type: Type.STRING, 
-                description: 'Specific entity, fact category, or topic title (e.g. "Birthday & Key Dates", "Primary Tech Stack", "Favorite Hobbies", "Company & Role", "Family & Pets")' 
-              },
-              summary: { 
-                type: Type.STRING, 
-                description: 'Factual, concrete context summary capturing exact dates, names, metrics, and details (e.g. "User\'s birthday is September 4th. Celebrated on September 4, 2026.")' 
-              },
-              dataPoints: {
-                type: Type.ARRAY,
-                items: { type: Type.STRING },
-                description: 'List of exact, explicit facts and key-values captured (e.g. ["Birthday: September 4th", "Date Stated: September 4, 2026", "Event: Birthday Celebration"])'
-              },
-              keyTakeaways: { 
-                type: Type.ARRAY, 
-                items: { type: Type.STRING },
-                description: '1 to 3 concrete context takeaways or rules for future conversation grounding'
-              },
-              confidence: { type: Type.NUMBER, description: 'Confidence score from 0.8 to 1.0 based on how clearly the user expressed this' }
+  const distillationSchema: Schema = {
+    type: Type.OBJECT,
+    properties: {
+      newKnowledgeNodes: {
+        type: Type.ARRAY,
+        items: {
+          type: Type.OBJECT,
+          properties: {
+            category: {
+              type: Type.STRING,
+              enum: ['Career', 'Goals', 'Learning', 'Projects', 'Personal', 'Mindset', 'Concerns']
             },
-            required: ['category', 'title', 'summary', 'dataPoints', 'keyTakeaways', 'confidence']
+            title: { 
+              type: Type.STRING, 
+              description: 'Specific entity, fact category, or topic title (e.g. "Birthday & Key Dates", "Primary Tech Stack", "Favorite Hobbies", "Company & Role", "Family & Pets")' 
+            },
+            summary: { 
+              type: Type.STRING, 
+              description: 'Factual, concrete context summary capturing exact dates, names, metrics, and details (e.g. "User\'s birthday is September 4th. Celebrated on September 4, 2026.")' 
+            },
+            dataPoints: {
+              type: Type.ARRAY,
+              items: { type: Type.STRING },
+              description: 'List of exact, explicit facts and key-values captured (e.g. ["Birthday: September 4th", "Date Stated: September 4, 2026", "Event: Birthday Celebration"])'
+            },
+            keyTakeaways: { 
+              type: Type.ARRAY, 
+              items: { type: Type.STRING },
+              description: '1 to 3 concrete context takeaways or rules for future conversation grounding'
+            },
+            confidence: { type: Type.NUMBER, description: 'Confidence score from 0.8 to 1.0 based on how clearly the user expressed this' }
           },
-          description: '1 to 4 distinct, fact-grounded knowledge & context nodes extracted from this conversation session'
+          required: ['category', 'title', 'summary', 'dataPoints', 'keyTakeaways', 'confidence']
         },
-        distillationSummary: {
-          type: Type.STRING,
-          description: 'A 1-sentence recap of what concrete context or data points were captured'
-        }
+        description: '1 to 4 distinct, fact-grounded knowledge & context nodes extracted from this conversation session'
       },
-      required: ['newKnowledgeNodes', 'distillationSummary']
-    };
+      distillationSummary: {
+        type: Type.STRING,
+        description: 'A 1-sentence recap of what concrete context or data points were captured'
+      }
+    },
+    required: ['newKnowledgeNodes', 'distillationSummary']
+  };
 
-    const prompt = `You are an Exact Context & Data Capture Engine.
+  const prompt = `You are an Exact Context & Data Capture Engine.
 Your mission is to capture CONCRETE FACTS, SPECIFIC DATA POINTS, DATES, ENTITIES, AND USER CONTEXT from recent User <-> AI conversations to maintain the user's Context & Knowledge Hub.
 
 CRITICAL DIRECTIVE:
@@ -632,21 +652,55 @@ Rules for Context Data Capture:
 5. If the conversation turns are only pure casual greetings or small talk with zero factual context or preferences, return an empty array for newKnowledgeNodes.
 6. Provide a concise 1-sentence distillation summary stating the specific facts captured.`;
 
-    const response = await ai.models.generateContent({
-      model: 'gemini-3.5-flash-lite',
-      contents: [{ role: 'user', parts: [{ text: prompt }] }],
-      config: {
-        responseMimeType: 'application/json',
-        responseSchema: distillationSchema,
-        temperature: 0.1
-      }
-    });
+  const response = await ai.models.generateContent({
+    model: 'gemini-3.5-flash-lite',
+    contents: [{ role: 'user', parts: [{ text: prompt }] }],
+    config: {
+      responseMimeType: 'application/json',
+      responseSchema: distillationSchema,
+      temperature: 0.1
+    }
+  });
 
-    const parsed = JSON.parse(response.text || '{"newKnowledgeNodes":[],"distillationSummary":"No knowledge formed"}');
+  const parsed = JSON.parse(response.text || '{"newKnowledgeNodes":[],"distillationSummary":"No knowledge formed"}');
+  return {
+    newKnowledgeNodes: parsed.newKnowledgeNodes || [],
+    distillationSummary: parsed.distillationSummary || 'Distilled conversational knowledge.'
+  };
+}
+
+// Background Worker Endpoint: Autonomous Conversation Knowledge Distiller & Synthesizer
+// Ingests turns of user <-> AI conversations, distills facts and updates Knowledge Hub.
+app.post('/api/gemini/distill-conversation', requireAuth, rateLimitGuard, async (req: AuthenticatedRequest, res: Response) => {
+  try {
+    const { messages, existingNodes, journalTitle } = req.body;
+    if (!messages || !Array.isArray(messages) || messages.length === 0) {
+      return res.status(400).json({ error: 'Bad Request', message: 'Messages array is required for distillation.' });
+    }
+
+    // Idempotency: filter only unanalyzed turns if analyzedForKnowledge flags are present
+    const unanalyzedTurns = messages.filter((m: any) => !m.analyzedForKnowledge);
+    
+    // If all incoming turns are already analyzed, return immediately (Idempotent response)
+    if (unanalyzedTurns.length === 0) {
+      return res.json({
+        newKnowledgeNodes: [],
+        distillationSummary: 'All conversation turns are already analyzed (Idempotent).',
+        turnsAnalyzed: 0,
+        analyzedMessageIds: [],
+        timestamp: new Date().toISOString()
+      });
+    }
+
+    // Take the 5-10 unanalyzed turns for distillation
+    const relevantTurns = unanalyzedTurns.slice(-10);
+    const analyzedMessageIds = relevantTurns.map((m: any) => m.id);
+
+    const distillation = await executeDistillationWorker(relevantTurns, existingNodes, journalTitle);
 
     res.json({
-      newKnowledgeNodes: parsed.newKnowledgeNodes || [],
-      distillationSummary: parsed.distillationSummary || 'Distilled conversational knowledge.',
+      newKnowledgeNodes: distillation.newKnowledgeNodes,
+      distillationSummary: distillation.distillationSummary,
       turnsAnalyzed: relevantTurns.length,
       analyzedMessageIds,
       timestamp: new Date().toISOString()
@@ -656,6 +710,99 @@ Rules for Context Data Capture:
     res.status(500).json({ error: 'Distillation Failed', message: error.message });
   }
 });
+
+// Hourly Cron Status & Diagnostics Endpoint
+app.get('/api/cron/hourly-distill', (req: Request, res: Response) => {
+  const cronSecretConfigured = Boolean(process.env.CRON_SECRET && process.env.CRON_SECRET.trim() !== '');
+  res.json({
+    service: 'Hourly Background Knowledge Distiller',
+    status: 'healthy',
+    frequency: 'Hourly (0 * * * *)',
+    lastRun: lastCronRunTime || 'No cron run executed yet',
+    totalRuns: totalCronRuns,
+    authRequired: cronSecretConfigured,
+    activeSessionsQueued: activeUserTurnBuffers.size,
+    cloudSchedulerInstructions: {
+      endpoint: '/api/cron/hourly-distill',
+      httpMethod: 'POST',
+      frequency: '0 * * * *',
+      authHeader: cronSecretConfigured ? 'Authorization: Bearer <CRON_SECRET>' : 'Optional (set CRON_SECRET for zero-trust authorization)'
+    },
+    timestamp: new Date().toISOString()
+  });
+});
+
+// Hourly Cron Webhook Endpoint (triggered by Google Cloud Scheduler or external cron)
+app.post('/api/cron/hourly-distill', async (req: Request, res: Response) => {
+  try {
+    const cronSecret = process.env.CRON_SECRET;
+    const authHeader = req.headers.authorization;
+    const isCloudScheduler = req.headers['x-cloudscheduler'] === 'true' || Boolean(req.headers['user-agent']?.includes('Google-Cloud-Scheduler'));
+
+    if (cronSecret && cronSecret.trim() !== '') {
+      const providedToken = authHeader?.startsWith('Bearer ') ? authHeader.split('Bearer ')[1]?.trim() : '';
+      if (providedToken !== cronSecret && !isCloudScheduler) {
+        return res.status(401).json({
+          error: 'Unauthorized',
+          message: 'Invalid or missing CRON_SECRET authorization header.'
+        });
+      }
+    }
+
+    const { userId, messages, existingNodes } = req.body || {};
+    const results: any[] = [];
+    let sessionsProcessed = 0;
+
+    // 1. If invoked with specific conversation turns for a user
+    if (userId && Array.isArray(messages) && messages.length >= 2) {
+      const distillation = await executeDistillationWorker(messages.slice(-10), existingNodes || []);
+      results.push({
+        userId,
+        turnsProcessed: Math.min(messages.length, 10),
+        newKnowledgeNodes: distillation.newKnowledgeNodes,
+        distillationSummary: distillation.distillationSummary
+      });
+      sessionsProcessed++;
+    } else {
+      // 2. Process active queued sessions accumulated in memory
+      for (const [uid, session] of activeUserTurnBuffers.entries()) {
+        if (session.turns.length >= 2) {
+          const turnsToAnalyze = session.turns.slice(-10);
+          console.log(`[Hourly Cron] Distilling ${turnsToAnalyze.length} queued turns for user: ${uid}`);
+          const distillation = await executeDistillationWorker(turnsToAnalyze, []);
+          results.push({
+            userId: uid,
+            turnsProcessed: turnsToAnalyze.length,
+            newKnowledgeNodes: distillation.newKnowledgeNodes,
+            distillationSummary: distillation.distillationSummary
+          });
+          // Shift processed turns out of buffer
+          session.turns = session.turns.slice(turnsToAnalyze.length);
+          sessionsProcessed++;
+        }
+      }
+    }
+
+    totalCronRuns++;
+    lastCronRunTime = new Date().toISOString();
+
+    res.json({
+      success: true,
+      service: 'Hourly Background Knowledge Distiller',
+      timestamp: lastCronRunTime,
+      totalRuns: totalCronRuns,
+      sessionsProcessed,
+      results,
+      summary: sessionsProcessed > 0
+        ? `Successfully completed hourly knowledge distillation for ${sessionsProcessed} session(s).`
+        : 'Hourly check completed. No unanalyzed conversation turns pending distillation in session queue.'
+    });
+  } catch (error: any) {
+    console.error('[Hourly Cron Error]:', error);
+    res.status(500).json({ error: 'Hourly Distillation Failed', message: error.message });
+  }
+});
+
 
 // Spark Prompt Generator for Creative Journaling
 app.post('/api/gemini/prompts', requireAuth, async (req: AuthenticatedRequest, res: Response) => {
@@ -709,6 +856,30 @@ async function startServer() {
       res.sendFile(path.join(distPath, 'index.html'));
     });
   }
+
+  // In-Process Hourly Knowledge Distillation Scheduler (every 60 minutes)
+  const HOURLY_INTERVAL_MS = 60 * 60 * 1000;
+  setInterval(async () => {
+    try {
+      let count = 0;
+      for (const [uid, session] of activeUserTurnBuffers.entries()) {
+        if (session.turns.length >= 2) {
+          const turnsToAnalyze = session.turns.slice(-10);
+          console.log(`[Hourly Background Worker] Distilling ${turnsToAnalyze.length} pending turns for user: ${uid}`);
+          await executeDistillationWorker(turnsToAnalyze, []);
+          session.turns = session.turns.slice(turnsToAnalyze.length);
+          count++;
+        }
+      }
+      if (count > 0) {
+        lastCronRunTime = new Date().toISOString();
+        totalCronRuns++;
+        console.log(`[Hourly Background Worker] Processed ${count} active user session(s) at ${lastCronRunTime}`);
+      }
+    } catch (err: any) {
+      console.error('[Hourly Background Worker Error]:', err?.message || err);
+    }
+  }, HOURLY_INTERVAL_MS);
 
   app.listen(PORT, '0.0.0.0', () => {
     console.log(`[Personal Gemini Journal] Secure server running on http://0.0.0.0:${PORT}`);
