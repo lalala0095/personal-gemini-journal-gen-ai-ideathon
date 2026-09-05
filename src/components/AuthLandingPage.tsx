@@ -31,6 +31,7 @@ export const AuthLandingPage: React.FC<AuthLandingPageProps> = ({ onOpenSecurity
   const currentHostname = typeof window !== 'undefined' ? window.location.hostname : '';
   const firebaseProjectId = appletConfig.projectId || 'supportrules-480714';
   const consoleSettingsUrl = `https://console.firebase.google.com/project/${firebaseProjectId}/authentication/settings`;
+  const gcpIdentityUrl = `https://console.cloud.google.com/customer-identity/settings?project=${firebaseProjectId}`;
 
   const isUnauthorizedDomain = (authError && authError.includes('unauthorized-domain')) || 
                                (error && error.includes('unauthorized-domain'));
@@ -213,38 +214,62 @@ export const AuthLandingPage: React.FC<AuthLandingPageProps> = ({ onOpenSecurity
                   </div>
 
                   {/* Step by Step Guide */}
-                  <div className="mt-3 text-xs text-slate-300 space-y-1.5">
-                    <div className="flex items-center gap-1.5">
-                      <span className="w-4 h-4 rounded-full bg-slate-800 text-slate-300 flex items-center justify-center text-[10px] font-mono font-bold">1</span>
-                      <span>Open Firebase Console Settings:</span>
-                      <a
-                        href={consoleSettingsUrl}
-                        target="_blank"
-                        rel="noreferrer"
-                        className="inline-flex items-center gap-1 text-sky-400 hover:text-sky-300 underline font-medium"
-                      >
-                        <span>Open Console</span>
-                        <ExternalLink className="w-3 h-3" />
-                      </a>
+                  <div className="mt-3 text-xs text-slate-300 space-y-2">
+                    <div className="flex items-start gap-2">
+                      <span className="w-5 h-5 rounded-full bg-slate-800 text-slate-200 flex items-center justify-center text-[10px] font-mono font-bold shrink-0 mt-0.5">1</span>
+                      <div>
+                        <span>Open your console settings (either works):</span>
+                        <div className="flex flex-wrap gap-2 mt-1">
+                          <a
+                            href={consoleSettingsUrl}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-sky-500/20 text-sky-300 hover:bg-sky-500/30 font-medium transition"
+                          >
+                            <span>Firebase Console Settings</span>
+                            <ExternalLink className="w-3 h-3" />
+                          </a>
+                          <span className="text-slate-400 self-center">or</span>
+                          <a
+                            href={gcpIdentityUrl}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-indigo-500/20 text-indigo-300 hover:bg-indigo-500/30 font-medium transition"
+                          >
+                            <span>Google Cloud Identity Platform</span>
+                            <ExternalLink className="w-3 h-3" />
+                          </a>
+                        </div>
+                      </div>
                     </div>
-                    <div className="flex items-center gap-1.5">
-                      <span className="w-4 h-4 rounded-full bg-slate-800 text-slate-300 flex items-center justify-center text-[10px] font-mono font-bold">2</span>
-                      <span>Under <strong>Authorized domains</strong>, click <strong>Add domain</strong> and paste the copied hostname.</span>
+
+                    <div className="flex items-start gap-2">
+                      <span className="w-5 h-5 rounded-full bg-slate-800 text-slate-200 flex items-center justify-center text-[10px] font-mono font-bold shrink-0 mt-0.5">2</span>
+                      <div>
+                        In <strong>Firebase Console</strong>: click the <strong>Settings</strong> tab at the top of the Authentication page &rarr; scroll to <strong>Authorized domains</strong> &rarr; click <strong>Add domain</strong> &rarr; paste the copied domain.
+                        <div className="text-[11px] text-slate-400 mt-0.5">
+                          (In Google Cloud Console: go to <strong>Security</strong> tab &rarr; <strong>Authorized domains</strong> &rarr; Add domain).
+                        </div>
+                      </div>
                     </div>
-                    <div className="flex items-center gap-1.5">
-                      <span className="w-4 h-4 rounded-full bg-slate-800 text-slate-300 flex items-center justify-center text-[10px] font-mono font-bold">3</span>
-                      <span>Click <strong>Save</strong>, then retry Google Sign-In above.</span>
+
+                    <div className="flex items-start gap-2">
+                      <span className="w-5 h-5 rounded-full bg-slate-800 text-slate-200 flex items-center justify-center text-[10px] font-mono font-bold shrink-0 mt-0.5">3</span>
+                      <span>Click <strong>Save</strong> / <strong>Add</strong>, then retry <strong>Sign In with Google</strong>.</span>
                     </div>
                   </div>
 
                   {/* Instant Sandbox Alternative */}
-                  <div className="mt-4 pt-3 border-t border-amber-500/20 flex flex-wrap items-center justify-between gap-3">
-                    <span className="text-[11px] text-slate-400">Want to test the full app immediately?</span>
+                  <div className="mt-4 pt-3 border-t border-amber-500/20 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2.5">
+                    <div>
+                      <div className="text-xs font-semibold text-white">Bypass and test immediately:</div>
+                      <div className="text-[11px] text-slate-400">Jump right into the full 3-tab workspace with mock tenant session.</div>
+                    </div>
                     <button
                       onClick={handleSandboxSignIn}
-                      className="px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-white text-xs font-medium border border-slate-700 flex items-center gap-1.5 transition"
+                      className="px-3.5 py-2 rounded-xl bg-gradient-to-r from-sky-600 to-indigo-600 hover:from-sky-500 hover:to-indigo-500 text-white text-xs font-semibold shadow-md flex items-center gap-2 transition shrink-0"
                     >
-                      <KeyRound className="w-3.5 h-3.5 text-sky-400" />
+                      <KeyRound className="w-3.5 h-3.5" />
                       <span>Enter Authenticated Sandbox</span>
                     </button>
                   </div>
