@@ -9,9 +9,14 @@ import {
   KeyRound, 
   CheckCircle2, 
   ArrowRight,
-  AlertCircle
+  AlertCircle,
+  ExternalLink,
+  Copy,
+  Check,
+  ShieldAlert
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
+import appletConfig from '../../firebase-applet-config.json';
 
 interface AuthLandingPageProps {
   onOpenSecurityModal: () => void;
@@ -21,6 +26,22 @@ export const AuthLandingPage: React.FC<AuthLandingPageProps> = ({ onOpenSecurity
   const { signInWithGoogle, signInWithSandbox, error } = useAuth();
   const [isSigningIn, setIsSigningIn] = useState(false);
   const [authError, setAuthError] = useState<string | null>(null);
+  const [copiedHostname, setCopiedHostname] = useState(false);
+
+  const currentHostname = typeof window !== 'undefined' ? window.location.hostname : '';
+  const firebaseProjectId = appletConfig.projectId || 'supportrules-480714';
+  const consoleSettingsUrl = `https://console.firebase.google.com/project/${firebaseProjectId}/authentication/settings`;
+
+  const isUnauthorizedDomain = (authError && authError.includes('unauthorized-domain')) || 
+                               (error && error.includes('unauthorized-domain'));
+
+  const handleCopyHostname = () => {
+    if (currentHostname) {
+      navigator.clipboard.writeText(currentHostname);
+      setCopiedHostname(true);
+      setTimeout(() => setCopiedHostname(false), 2500);
+    }
+  };
 
   const handleGoogleSignIn = async () => {
     setIsSigningIn(true);
@@ -156,12 +177,86 @@ export const AuthLandingPage: React.FC<AuthLandingPageProps> = ({ onOpenSecurity
             </button>
           </div>
 
-          {(authError || error) && (
+          {isUnauthorizedDomain ? (
+            <div className="mt-6 p-4 sm:p-5 rounded-2xl bg-amber-950/40 border border-amber-500/40 text-left max-w-xl mx-auto shadow-2xl backdrop-blur-sm animate-in fade-in slide-in-from-bottom-2">
+              <div className="flex items-start gap-3">
+                <div className="p-2 rounded-xl bg-amber-500/20 text-amber-300 shrink-0 mt-0.5">
+                  <ShieldAlert className="w-5 h-5" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center justify-between gap-2">
+                    <h4 className="text-sm font-semibold text-white">Firebase Authorization Required</h4>
+                    <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-amber-500/20 text-amber-300 border border-amber-500/30">
+                      auth/unauthorized-domain
+                    </span>
+                  </div>
+                  <p className="text-xs text-slate-300 mt-1.5 leading-relaxed">
+                    Firebase OAuth requires this domain to be registered in your Firebase project before Google Sign-In popups can complete.
+                  </p>
+
+                  {/* Current Hostname Display with Copy */}
+                  <div className="mt-3 p-2.5 rounded-xl bg-slate-900/90 border border-slate-800 flex items-center justify-between gap-2">
+                    <div className="min-w-0 flex-1">
+                      <div className="text-[10px] uppercase font-mono text-slate-400">Current Domain:</div>
+                      <div className="text-xs font-mono text-amber-200 truncate font-semibold">
+                        {currentHostname || 'ais-dev-...run.app'}
+                      </div>
+                    </div>
+                    <button
+                      onClick={handleCopyHostname}
+                      className="shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-amber-500/20 hover:bg-amber-500/30 text-amber-200 text-xs font-medium border border-amber-500/30 transition"
+                      title="Copy domain to clipboard"
+                    >
+                      {copiedHostname ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}
+                      <span>{copiedHostname ? 'Copied!' : 'Copy Domain'}</span>
+                    </button>
+                  </div>
+
+                  {/* Step by Step Guide */}
+                  <div className="mt-3 text-xs text-slate-300 space-y-1.5">
+                    <div className="flex items-center gap-1.5">
+                      <span className="w-4 h-4 rounded-full bg-slate-800 text-slate-300 flex items-center justify-center text-[10px] font-mono font-bold">1</span>
+                      <span>Open Firebase Console Settings:</span>
+                      <a
+                        href={consoleSettingsUrl}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="inline-flex items-center gap-1 text-sky-400 hover:text-sky-300 underline font-medium"
+                      >
+                        <span>Open Console</span>
+                        <ExternalLink className="w-3 h-3" />
+                      </a>
+                    </div>
+                    <div className="flex items-center gap-1.5">
+                      <span className="w-4 h-4 rounded-full bg-slate-800 text-slate-300 flex items-center justify-center text-[10px] font-mono font-bold">2</span>
+                      <span>Under <strong>Authorized domains</strong>, click <strong>Add domain</strong> and paste the copied hostname.</span>
+                    </div>
+                    <div className="flex items-center gap-1.5">
+                      <span className="w-4 h-4 rounded-full bg-slate-800 text-slate-300 flex items-center justify-center text-[10px] font-mono font-bold">3</span>
+                      <span>Click <strong>Save</strong>, then retry Google Sign-In above.</span>
+                    </div>
+                  </div>
+
+                  {/* Instant Sandbox Alternative */}
+                  <div className="mt-4 pt-3 border-t border-amber-500/20 flex flex-wrap items-center justify-between gap-3">
+                    <span className="text-[11px] text-slate-400">Want to test the full app immediately?</span>
+                    <button
+                      onClick={handleSandboxSignIn}
+                      className="px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-white text-xs font-medium border border-slate-700 flex items-center gap-1.5 transition"
+                    >
+                      <KeyRound className="w-3.5 h-3.5 text-sky-400" />
+                      <span>Enter Authenticated Sandbox</span>
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          ) : (authError || error) ? (
             <div className="mt-4 p-3 rounded-xl bg-rose-950/50 border border-rose-500/30 text-rose-300 text-xs flex items-center justify-center gap-2 max-w-md mx-auto">
               <AlertCircle className="w-4 h-4 shrink-0" />
               <span>{authError || error}</span>
             </div>
-          )}
+          ) : null}
         </div>
 
         {/* 3 Core Isolations & Overview Cards */}

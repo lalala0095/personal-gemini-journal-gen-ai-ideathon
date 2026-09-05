@@ -87,7 +87,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       localStorage.removeItem('journal_sandbox_user');
     } catch (err: any) {
       console.error('Google Sign-In Error:', err);
-      setError(err.message || 'Failed to sign in with Google.');
+      const errMsg = err.code === 'auth/unauthorized-domain' 
+        ? 'auth/unauthorized-domain: This domain is not authorized in your Firebase Console for Google OAuth.'
+        : (err.message || 'Failed to sign in with Google.');
+      setError(errMsg);
+      throw err;
     }
   };
 
