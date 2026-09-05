@@ -93,7 +93,7 @@ export const GeminiBrainstormPanel: React.FC<GeminiBrainstormPanelProps> = ({
     if (!textToSend || isLoading) return;
 
     if (!user || !token) {
-      setError('Please sign in to chat with Gemini 3.5 Flash-Lite.');
+      setError('Please sign in to chat with your brainstorming partner.');
       return;
     }
 
@@ -188,7 +188,7 @@ export const GeminiBrainstormPanel: React.FC<GeminiBrainstormPanelProps> = ({
     isWorkerBusyRef.current = true;
     setIsDistilling(true);
     const turnsToProcess = unanalyzedTurns.slice(-10);
-    setDistillStatus(`Distilling ${turnsToProcess.length} unanalyzed turn${turnsToProcess.length > 1 ? 's' : ''} with Gemini 3.5 Flash-Lite...`);
+    setDistillStatus(`Syncing ${turnsToProcess.length} context item${turnsToProcess.length > 1 ? 's' : ''} to Knowledge Hub...`);
 
     try {
       const activeTitle = journals.find(j => j.id === activeJournalId)?.title;
@@ -308,8 +308,8 @@ export const GeminiBrainstormPanel: React.FC<GeminiBrainstormPanelProps> = ({
           <div>
             <div className="flex items-center gap-2">
               <h3 className="text-sm font-semibold text-white">Gemini Brainstorming Partner</h3>
-              <span className="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-sky-500/10 text-sky-400 border border-sky-500/20">
-                Gemini 3.5 Flash-Lite
+              <span className="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
+                AI Active
               </span>
             </div>
             <div className="flex items-center gap-2 text-xs text-slate-400 mt-0.5">
@@ -460,7 +460,7 @@ export const GeminiBrainstormPanel: React.FC<GeminiBrainstormPanelProps> = ({
               <div className={`max-w-[85%] sm:max-w-[80%] space-y-1.5`}>
                 <div className="flex items-center gap-2 px-1">
                   <span className="text-[11px] font-semibold text-slate-400">
-                    {msg.role === 'user' ? 'You' : 'Gemini 3.5 Flash-Lite'}
+                    {msg.role === 'user' ? 'You' : 'Brainstorming Partner'}
                   </span>
                   <span className="text-[10px] text-slate-500 font-mono">
                     {new Date(msg.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
@@ -548,7 +548,7 @@ export const GeminiBrainstormPanel: React.FC<GeminiBrainstormPanelProps> = ({
             </div>
             <div className="p-4 rounded-2xl bg-slate-800/90 border border-slate-700/80 text-slate-300 flex items-center gap-2.5 text-xs sm:text-sm">
               <RefreshCw className="w-4 h-4 animate-spin text-sky-400" />
-              <span>Gemini 3.5 Flash-Lite is reflecting...</span>
+              <span>Reflecting on your thoughts...</span>
             </div>
           </div>
         )}

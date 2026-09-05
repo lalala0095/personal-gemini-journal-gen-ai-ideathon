@@ -147,7 +147,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
             <span className="text-xs text-slate-400 font-medium">Emotional Clarity Index</span>
             <div className="text-2xl font-bold text-white tracking-tight">{avgClarityScore} / 100</div>
             <span className="text-[11px] text-sky-400 flex items-center gap-1 font-medium">
-              <TrendingUp className="w-3 h-3" /> Gemini 3.5 Synthesized
+              <TrendingUp className="w-3 h-3" /> AI Synthesized
             </span>
           </div>
           <div className="w-11 h-11 rounded-xl bg-sky-500/10 text-sky-400 flex items-center justify-center">

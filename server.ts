@@ -223,7 +223,7 @@ CORE CONTEXT GROUNDING RULES:
 - Do not recite the raw knowledge list; use it naturally to provide tailored, context-aware responses.`;
     }
 
-    const systemInstruction = `You are a thoughtful, empathetic, and intellectually curious Personal Journaling & Brainstorming Partner powered by Gemini 3.5 Flash-Lite.
+    const systemInstruction = `You are a thoughtful, empathetic, and intellectually curious Personal Journaling & Brainstorming Partner.
 Current Reference Date & Time: ${formattedCurrentDate} (${currentISODate}, ${now.toISOString()})
 
 Your core principles:
@@ -596,7 +596,7 @@ app.post('/api/gemini/distill-conversation', requireAuth, rateLimitGuard, async 
       required: ['newKnowledgeNodes', 'distillationSummary']
     };
 
-    const prompt = `You are an Exact Context & Data Capture Engine powered by Gemini 3.5 Flash-Lite.
+    const prompt = `You are an Exact Context & Data Capture Engine.
 Your mission is to capture CONCRETE FACTS, SPECIFIC DATA POINTS, DATES, ENTITIES, AND USER CONTEXT from recent User <-> AI conversations to maintain the user's Context & Knowledge Hub.
 
 CRITICAL DIRECTIVE:
