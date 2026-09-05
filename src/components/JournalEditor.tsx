@@ -91,12 +91,12 @@ export const JournalEditor: React.FC<JournalEditorProps> = ({
         <div className="flex items-center gap-2 text-xs text-slate-400">
           <span className="flex items-center gap-1.5 text-emerald-400">
             <ShieldCheck className="w-4 h-4" />
-            <span className="hidden sm:inline">Encrypted Tenant Storage</span>
+            <span className="hidden sm:inline">Encrypted Private Storage</span>
           </span>
           <span>•</span>
           <span className="flex items-center gap-1">
             <Clock className="w-3.5 h-3.5" />
-            {isSaving ? 'Saving...' : 'Saved to Document DB'}
+            {isSaving ? 'Saving...' : 'Saved to Cloud'}
           </span>
         </div>
 

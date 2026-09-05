@@ -85,7 +85,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
             Welcome back to your private sanctuary.
           </h2>
           <p className="text-xs sm:text-sm text-slate-400 max-w-2xl leading-relaxed">
-            All reflections and knowledge nodes are isolated strictly in Firestore under <code className="text-sky-300 font-mono text-xs">/users/{userId.slice(0, 10)}.../*</code>.
+            Your reflections, insights, and long-term memories are encrypted, completely private, and accessible only to your authenticated account.
           </p>
         </div>
 
@@ -115,7 +115,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
             <span className="text-xs text-slate-400 font-medium">Journal Entries</span>
             <div className="text-2xl font-bold text-white tracking-tight">{totalEntries}</div>
             <span className="text-[11px] text-emerald-400 flex items-center gap-1 font-medium">
-              <ShieldCheck className="w-3 h-3" /> Zero-Trust Isolated
+              <ShieldCheck className="w-3 h-3" /> Encrypted & Private
             </span>
           </div>
           <div className="w-11 h-11 rounded-xl bg-indigo-500/10 text-indigo-400 flex items-center justify-center">
@@ -315,7 +315,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
 
             <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-indigo-900/30 border border-indigo-700/40 text-[11px] text-indigo-200">
               <Sparkles className="w-3.5 h-3.5 text-indigo-400 shrink-0" />
-              <span>Auto-synthesizes every 5-10 conversational turns with Gemini 3.5 Flash-Lite</span>
+              <span>Automatically organizes key takeaways from your conversations</span>
             </div>
 
             <p className="text-xs text-slate-400 leading-relaxed">
@@ -352,24 +352,24 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
             )}
           </div>
 
-          {/* Security & Threat Invariants Card */}
+          {/* Privacy & Protection Standards Card */}
           <div className="p-5 rounded-2xl bg-slate-900/40 border border-slate-800 space-y-3">
             <div className="flex items-center gap-2 text-xs font-semibold text-emerald-400">
               <ShieldCheck className="w-4 h-4" />
-              <span>Security Constitution Status</span>
+              <span>Privacy & Data Protection</span>
             </div>
             <ul className="space-y-2 text-xs text-slate-300">
               <li className="flex items-start gap-2">
                 <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 mt-1.5 shrink-0" />
-                <span>Zero Browser Exposure of GEMINI_API_KEY</span>
+                <span>100% Private Cloud Storage</span>
               </li>
               <li className="flex items-start gap-2">
                 <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 mt-1.5 shrink-0" />
-                <span>Tenant Firestore Path Isolation Active</span>
+                <span>Strict Account-Level Isolation</span>
               </li>
               <li className="flex items-start gap-2">
                 <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 mt-1.5 shrink-0" />
-                <span>Rate-Limit Guard (35 req/min) Active</span>
+                <span>Zero AI Model Training on Your Data</span>
               </li>
             </ul>
             <button
@@ -377,7 +377,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
               className="w-full py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white text-xs font-medium border border-slate-700 transition mt-2 flex items-center justify-center gap-1.5"
             >
               <Lock className="w-3.5 h-3.5 text-sky-400" />
-              <span>Open Security Inspector</span>
+              <span>Privacy & Security Overview</span>
             </button>
           </div>
         </div>

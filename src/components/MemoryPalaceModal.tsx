@@ -156,13 +156,13 @@ export const MemoryPalaceModal: React.FC<MemoryPalaceModalProps> = ({
                 <span className="px-2 py-0.5 text-xs font-semibold bg-indigo-100 text-indigo-700 rounded-full border border-indigo-200">
                   Agent Long-Term Memory
                 </span>
-                <span className="hidden sm:inline-flex items-center gap-1 px-2 py-0.5 text-[11px] font-semibold bg-emerald-50 text-emerald-700 rounded-full border border-emerald-200">
-                  <Cpu className="w-3 h-3 text-emerald-600" />
-                  Auto-Worker: Gemini 3.5 Flash-Lite
+                <span className="hidden sm:inline-flex items-center gap-1 px-2 py-0.5 text-[11px] font-semibold bg-indigo-50 text-indigo-700 rounded-full border border-indigo-200">
+                  <Cpu className="w-3 h-3 text-indigo-600" />
+                  Automated Insight Sync
                 </span>
               </div>
               <p className="text-xs text-slate-500">
-                Private knowledge nodes isolated to your UID. The background worker automatically ingests 5-10 turns of dialogue and distills lasting knowledge into this hub.
+                Your personal long-term knowledge base. Key ideas, milestones, and perspectives from your conversations are organized here automatically.
               </p>
             </div>
           </div>
@@ -464,8 +464,8 @@ export const MemoryPalaceModal: React.FC<MemoryPalaceModalProps> = ({
               {isAsking && (
                 <div className="p-8 text-center bg-white rounded-xl border border-slate-200">
                   <Loader2 className="w-6 h-6 text-indigo-600 animate-spin mx-auto mb-2" />
-                  <p className="text-xs font-semibold text-slate-700">Searching your private knowledge palace...</p>
-                  <p className="text-[11px] text-slate-400 mt-1">Cross-referencing Firestore subcollections under /users/{userId.slice(0, 8)}...</p>
+                  <p className="text-xs font-semibold text-slate-700">Searching your private knowledge base...</p>
+                  <p className="text-[11px] text-slate-400 mt-1">Cross-referencing your personal reflections and memories...</p>
                 </div>
               )}
 
@@ -505,9 +505,9 @@ export const MemoryPalaceModal: React.FC<MemoryPalaceModalProps> = ({
         <div className="px-6 py-3 border-t border-slate-200 bg-slate-50 text-[11px] text-slate-500 flex items-center justify-between">
           <div className="flex items-center gap-1.5 text-emerald-700 font-medium">
             <ShieldCheck className="w-4 h-4 text-emerald-600" />
-            Zero-Trust Isolation Active: /users/{userId}/knowledge_hub/*
+            Private & Encrypted • Isolated to your account
           </div>
-          <span>Rate Limited & Encrypted</span>
+          <span className="text-slate-400">Secure Cloud Sync</span>
         </div>
       </div>
     </div>

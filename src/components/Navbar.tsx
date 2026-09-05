@@ -51,7 +51,7 @@ export const Navbar: React.FC<NavbarProps> = ({
                 Personal Gemini Journal
               </h1>
               <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
-                <ShieldCheck className="w-3 h-3" /> Zero-Trust
+                <ShieldCheck className="w-3 h-3" /> Private & Secure
               </span>
             </div>
           </div>
@@ -103,13 +103,13 @@ export const Navbar: React.FC<NavbarProps> = ({
 
         {/* Right Actions */}
         <div className="flex items-center gap-2 sm:gap-3 shrink-0">
-          {/* Memory Palace Gimmick Button */}
+          {/* Memory Palace Button */}
           {user && (
             <button
               id="memory-palace-btn"
               onClick={onOpenMemoryPalace}
               className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 text-white shadow-sm shadow-indigo-500/20 transition"
-              title="Open Memory Palace (Agent Knowledge Hub)"
+              title="Open Memory Palace (Knowledge Hub)"
             >
               <Brain className="w-3.5 h-3.5" />
               <span className="hidden md:inline">Memory Palace</span>
@@ -121,15 +121,15 @@ export const Navbar: React.FC<NavbarProps> = ({
             </button>
           )}
 
-          {/* Security & Isolation Audit Inspector */}
+          {/* Privacy & Security Modal Button */}
           <button
             id="security-audit-btn"
             onClick={onOpenSecurityModal}
             className="flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-lg text-xs font-medium bg-slate-800 hover:bg-slate-700/80 text-slate-300 hover:text-white border border-slate-700 transition"
-            title="Inspect Security Directives and Tenant Isolation"
+            title="Privacy and Data Protection"
           >
             <Lock className="w-3.5 h-3.5 text-sky-400" />
-            <span className="hidden md:inline">Security</span>
+            <span className="hidden md:inline">Privacy & Security</span>
           </button>
 
           {/* New Entry Button */}

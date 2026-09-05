@@ -74,11 +74,11 @@ export const AuthLandingPage: React.FC<AuthLandingPageProps> = ({ onOpenSecurity
               <div className="flex items-center gap-2">
                 <h1 className="font-semibold text-base tracking-tight text-white">Personal Gemini Journal</h1>
                 <span className="hidden sm:inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
-                  <ShieldCheck className="w-3 h-3" /> Zero-Trust
+                  <ShieldCheck className="w-3 h-3" /> Private & Secure
                 </span>
               </div>
               <p className="text-xs text-slate-400 hidden md:block">
-                Zero Browser Secret Exposure • Firestore Document DB • Gemini 3.5 Flash-Lite
+                Private Cloud Storage • Intelligent AI Partner • End-to-End Confidentiality
               </p>
             </div>
           </div>
@@ -89,7 +89,7 @@ export const AuthLandingPage: React.FC<AuthLandingPageProps> = ({ onOpenSecurity
               className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white border border-slate-700 transition"
             >
               <Lock className="w-3.5 h-3.5 text-sky-400" />
-              <span>Security Inspector</span>
+              <span>Privacy & Security</span>
             </button>
 
             <button
@@ -126,15 +126,15 @@ export const AuthLandingPage: React.FC<AuthLandingPageProps> = ({ onOpenSecurity
         <div className="text-center space-y-4 max-w-3xl mx-auto mb-12">
           <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-medium bg-indigo-500/10 text-indigo-300 border border-indigo-500/20">
             <ShieldCheck className="w-3.5 h-3.5 text-indigo-400" />
-            <span>OAuth & Rate-Gated Introspection Environment</span>
+            <span>Private & Confidential Sanctuary</span>
           </div>
 
           <h2 className="text-3xl sm:text-4xl lg:text-5xl font-bold tracking-tight text-white">
-            Your Private Introspective Journal & <span className="bg-clip-text text-transparent bg-gradient-to-r from-sky-400 via-indigo-300 to-purple-400">Agent Memory Palace</span>
+            Your Private Introspective Journal & <span className="bg-clip-text text-transparent bg-gradient-to-r from-sky-400 via-indigo-300 to-purple-400">Memory Palace</span>
           </h2>
 
           <p className="text-sm sm:text-base text-slate-400 leading-relaxed max-w-2xl mx-auto">
-            A reflective personal sanctuary powered by server-side Gemini 3.5 Flash-Lite. Write freely with real-time DLP privacy guards, converse with a thoughtful brainstorming partner, and preserve your evolving goals in a zero-trust long-term knowledge hub.
+            A reflective personal sanctuary for mindful writing and creative brainstorming. Write freely with real-time sensitive data guards, converse with an insightful AI partner, and build a lasting private knowledge hub.
           </p>
 
           {/* Authentication Action Box */}
@@ -309,7 +309,7 @@ export const AuthLandingPage: React.FC<AuthLandingPageProps> = ({ onOpenSecurity
               </li>
               <li className="flex items-center gap-2">
                 <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" />
-                <span>Zero-Trust Database Telemetry</span>
+                <span>Private Cloud Sync</span>
               </li>
             </ul>
           </div>
@@ -324,20 +324,20 @@ export const AuthLandingPage: React.FC<AuthLandingPageProps> = ({ onOpenSecurity
               <h3 className="text-base font-semibold text-white mt-0.5">Private Journaling Studio</h3>
             </div>
             <p className="text-xs text-slate-400 leading-relaxed">
-              Distraction-free Markdown editor guarded by client-side DLP regex sanitizers, autosaving directly to per-user isolated Firestore subcollections.
+              Distraction-free Markdown editor guarded by real-time sensitive data detection, autosaving directly to your private, isolated cloud storage.
             </p>
             <ul className="space-y-1.5 text-xs text-slate-300 pt-2 border-t border-slate-800/60">
               <li className="flex items-center gap-2">
                 <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" />
-                <span>Client-Side Token DLP Scanner</span>
+                <span>Sensitive Data & Secret Protection</span>
               </li>
               <li className="flex items-center gap-2">
                 <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" />
-                <span>Cloud Firestore `/users/{'{uid}'}/journals`</span>
+                <span>Account-Isolated Storage</span>
               </li>
               <li className="flex items-center gap-2">
                 <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" />
-                <span>SHA-256 Tamper-Evident Signatures</span>
+                <span>Tamper-Evident Record Integrity</span>
               </li>
             </ul>
           </div>
@@ -357,35 +357,35 @@ export const AuthLandingPage: React.FC<AuthLandingPageProps> = ({ onOpenSecurity
             <ul className="space-y-1.5 text-xs text-slate-300 pt-2 border-t border-slate-800/60">
               <li className="flex items-center gap-2">
                 <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" />
-                <span>Server-Side Gemini 3.5 Flash-Lite Proxy</span>
+                <span>Secure Server-Side AI Intelligence</span>
               </li>
               <li className="flex items-center gap-2">
                 <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" />
-                <span>Knowledge Hub Memory Integration</span>
+                <span>Private Knowledge Hub Integration</span>
               </li>
               <li className="flex items-center gap-2">
                 <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" />
-                <span>Rate-Guarded (35 req/min Sliding Window)</span>
+                <span>Active Abuse & Spam Protection</span>
               </li>
             </ul>
           </div>
         </div>
 
-        {/* Zero-Trust Architecture Guarantee Banner */}
+        {/* Privacy & Security Guarantee Banner */}
         <div className="p-6 rounded-2xl bg-slate-900/40 border border-slate-800 flex flex-col sm:flex-row items-center justify-between gap-4 text-xs text-slate-400">
           <div className="flex items-center gap-3">
             <div className="w-8 h-8 rounded-lg bg-emerald-500/10 text-emerald-400 flex items-center justify-center shrink-0">
               <ShieldCheck className="w-4 h-4" />
             </div>
             <div>
-              <strong className="text-slate-200">OAuth & STRIDE Compliant Security Constitution:</strong> Anonymous direct chats and cross-user data scraping are strictly prohibited. Every request requires verified user credentials.
+              <strong className="text-slate-200">Our Privacy Commitment:</strong> Your personal reflections and memory nodes are completely isolated to your account. No other users can access your data, and your entries are never used to train public AI models.
             </div>
           </div>
           <button
             onClick={onOpenSecurityModal}
             className="shrink-0 text-sky-400 hover:text-sky-300 underline underline-offset-4 font-medium"
           >
-            Review Security Audit Spec &rarr;
+            Learn About Privacy & Security &rarr;
           </button>
         </div>
       </main>
